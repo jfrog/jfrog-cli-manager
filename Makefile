@@ -41,3 +41,48 @@ clean:
 	@echo "🧹 Cleaning build artifacts..."
 	rm -f $(JFVM_BIN)
 	cd shim && rm -f $(SHIM_BIN)
+
+# E2E Testing
+.PHONY: test-e2e test-e2e-local test-e2e-ci test-e2e-ubuntu test-e2e-macos
+
+test-e2e: build
+	@echo "Running E2E tests..."
+	@chmod +x tests/e2e/run_tests.sh
+	@./tests/e2e/run_tests.sh
+
+test-e2e-local: build
+	@echo "Running E2E tests locally..."
+	@JFVM_PATH=$(PWD)/jfvm go test -v -timeout 10m ./tests/e2e/...
+
+test-e2e-ci: build
+	@echo "Running E2E tests for CI..."
+	@chmod +x tests/e2e/run_ci_tests.sh
+	@./tests/e2e/run_ci_tests.sh
+
+test-e2e-ubuntu: build
+	@echo "Running E2E tests on Ubuntu..."
+	@JFVM_PATH=$(PWD)/jfvm TEST_FILTER="TestCoreVersionManagement|TestAliasManagement" go test -v -timeout 10m ./tests/e2e/...
+
+test-e2e-macos: build
+	@echo "Running E2E tests on macOS..."
+	@JFVM_PATH=$(PWD)/jfvm TEST_FILTER="TestCoreVersionManagement|TestAliasManagement" go test -v -timeout 10m ./tests/e2e/...
+
+# Test specific features
+test-e2e-latest: build
+	@echo "Testing 'latest' functionality..."
+	@JFVM_PATH=$(PWD)/jfvm go test -v -timeout 5m ./tests/e2e/ -run TestCoreVersionManagement/Use_Latest_Version
+
+test-e2e-alias: build
+	@echo "Testing alias functionality..."
+	@JFVM_PATH=$(PWD)/jfvm go test -v -timeout 5m ./tests/e2e/ -run TestAliasManagement
+
+test-e2e-performance: build
+	@echo "Testing performance..."
+	@JFVM_PATH=$(PWD)/jfvm go test -v -timeout 10m ./tests/e2e/ -run TestPerformance
+
+# Clean test artifacts
+clean-tests:
+	@echo "Cleaning test artifacts..."
+	@rm -rf /tmp/jfvm-e2e-*
+	@rm -f test-results-*.json
+	@rm -rf coverage-reports/

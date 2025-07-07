@@ -1,0 +1,119 @@
+# jfvm E2E Test Configuration
+
+# Test timeouts (in seconds)
+timeouts:
+  short: 30    # For quick tests like list, help
+  medium: 120  # For install, use operations
+  long: 300    # For download operations
+  very_long: 600  # For full workflow tests
+
+# Test versions to use
+versions:
+  stable: "2.74.0"
+  previous: "2.73.0"
+  latest: "latest"
+  invalid: "999.999.999"
+
+# Test aliases
+aliases:
+  valid:
+    - name: "prod"
+      version: "2.74.0"
+    - name: "dev"
+      version: "2.73.0"
+    - name: "staging"
+      version: "2.72.0"
+  invalid:
+    - name: "latest"  # Reserved keyword
+    - name: "LATEST"  # Case variations
+    - name: "Latest"
+
+# Platform-specific configurations
+platforms:
+  ubuntu:
+    binary_name: "jf"
+    platform_suffix: "linux-amd64"
+  macos:
+    binary_name: "jf"
+    platform_suffix: "mac-arm64"
+  windows:
+    binary_name: "jf.exe"
+    platform_suffix: "windows-amd64"
+
+# Test scenarios
+scenarios:
+  basic_workflow:
+    description: "Basic version management workflow"
+    steps:
+      - install_version
+      - list_versions
+      - use_version
+      - remove_version
+    timeout: medium
+
+  alias_workflow:
+    description: "Alias management workflow"
+    steps:
+      - install_version
+      - set_alias
+      - get_alias
+      - use_alias
+      - remove_alias
+    timeout: medium
+
+  latest_workflow:
+    description: "Latest version workflow"
+    steps:
+      - use_latest
+      - verify_latest
+    timeout: long
+
+  project_workflow:
+    description: "Project-specific version workflow"
+    steps:
+      - create_project_file
+      - use_project_version
+      - remove_project_file
+      - use_without_project_file
+    timeout: medium
+
+  error_handling:
+    description: "Error handling scenarios"
+    steps:
+      - use_invalid_version
+      - remove_invalid_version
+      - invalid_command
+      - missing_arguments
+    timeout: short
+
+  performance:
+    description: "Performance tests"
+    steps:
+      - install_performance
+      - list_performance
+      - concurrent_operations
+    timeout: very_long
+
+  security:
+    description: "Security-related tests"
+    steps:
+      - binary_permissions
+      - file_permissions
+    timeout: short
+
+# Test data
+test_data:
+  project_files:
+    valid: "2.74.0"
+    invalid: "invalid-version"
+    empty: ""
+  
+  dummy_binaries:
+    valid: "#!/bin/bash\necho 'dummy jf binary'"
+    invalid: "invalid binary content"
+
+# Environment variables for tests
+environment:
+  JFVM_DEBUG: "1"
+  JFVM_PATH: "./jfvm"
+  TEST_TIMEOUT: "300s" 
