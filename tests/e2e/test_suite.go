@@ -488,3 +488,45 @@ func TestSecurity(t *testing.T) {
 		}
 	})
 }
+
+// TestShimAndPATH tests shim and PATH functionality
+func TestShimAndPATH(t *testing.T) {
+	ts := SetupTestSuite(t)
+	defer ts.CleanupTestSuite(t)
+
+	// Install a version first
+	ts.RunCommand(t, "install", "2.74.0")
+
+	t.Run("Use Version with Automatic Shim Setup", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "use", "2.74.0")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Successfully activated")
+		ts.AssertContains(t, output, "takes priority over system jf")
+		ts.AssertContains(t, output, "Setting up jf shim")
+		ts.AssertContains(t, output, "Updating PATH")
+	})
+
+	t.Run("Shim File Exists", func(t *testing.T) {
+		shimPath := filepath.Join(os.Getenv("HOME"), ".jfvm", "shim", "jf")
+		if _, err := os.Stat(shimPath); os.IsNotExist(err) {
+			t.Errorf("Shim file should exist at %s", shimPath)
+		}
+	})
+
+	t.Run("Shim is Executable", func(t *testing.T) {
+		shimPath := filepath.Join(os.Getenv("HOME"), ".jfvm", "shim", "jf")
+		if info, err := os.Stat(shimPath); err == nil {
+			mode := info.Mode()
+			if mode&0111 == 0 {
+				t.Errorf("Shim should be executable")
+			}
+		}
+	})
+
+	t.Run("Use Latest with Shim Setup", func(t *testing.T) {
+		output, err := ts.RunCommandWithTimeout(t, 30*time.Second, "use", "latest")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Successfully activated")
+		ts.AssertContains(t, output, "takes priority over system jf")
+	})
+}

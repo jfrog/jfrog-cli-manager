@@ -67,7 +67,7 @@ jfvm install 2.74.0
 ```
 
 #### `jfvm use <version or alias>`
-Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed).
+Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed). Automatically sets up PATH priority so jfvm-managed `jf` takes precedence over system-installed versions.
 ```bash
 jfvm use 2.74.0
 jfvm use latest
@@ -104,6 +104,8 @@ Links a **locally built `jf` binary** to be used via `jfvm`.
 jfvm link --from /Users/Jfrog/go/bin/jf --name local-dev
 jfvm use local-dev
 ```
+
+
 
 ### Advanced Features
 
@@ -200,11 +202,18 @@ jfvm use
 ---
 
 ## ⚙️ Shell Integration
-Add this to your shell profile (`.zshrc`, `.bashrc`, etc.):
+jfvm automatically configures your shell to prioritize jfvm-managed `jf` binaries over system-installed versions. When you run `jfvm use <version>`, it:
+
+1. **Creates a shim** at `~/.jfvm/shim/jf` that redirects to the active version
+2. **Updates your PATH** to prioritize the jfvm shim directory
+3. **Ensures jfvm-managed versions take precedence** over Homebrew or system-installed jf
+
+The PATH configuration is automatically added to your shell profile (`.zshrc`, `.bashrc`, etc.):
 ```bash
 export PATH="$HOME/.jfvm/shim:$PATH"
 ```
-This allows the shimmed `jf` command to delegate to the correct version transparently.
+
+
 
 ### Debug Mode
 Set `JFVM_DEBUG=1` to see detailed shim execution information:
@@ -213,6 +222,34 @@ export JFVM_DEBUG=1
 # Will show which version is being executed
 jf --version
 ```
+
+### Troubleshooting PATH Issues
+
+If `jf` is still using the system version instead of jfvm-managed version:
+
+1. **Check which jf is being used:**
+   ```bash
+   which jf
+   # Should show: /Users/username/.jfvm/shim/jf
+   ```
+
+2. **Verify PATH order:**
+   ```bash
+   echo $PATH
+   # ~/.jfvm/shim should appear before /usr/local/bin or /opt/homebrew/bin
+   ```
+
+3. **Re-run use command:**
+   ```bash
+   jfvm use <version>
+   source ~/.zshrc  # or ~/.bashrc
+   ```
+
+4. **Manual PATH fix:**
+   ```bash
+   # Add this to your shell profile
+   export PATH="$HOME/.jfvm/shim:$PATH"
+   ```
 
 ---
 

@@ -1,22 +1,28 @@
-.PHONY: build install uninstall clean bootstrap test
+# Cleaned Makefile: only builds and installs the main jfvm binary and sets up the shim directory for PATH
+.PHONY: build install uninstall clean bootstrap test build-release
 
 JFVM_BIN := jfvm
-SHIM_BIN := jf
 SHIM_DIR := $(HOME)/.jfvm/shim
+
+# Get version from git tag, fallback to dev
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_DATE := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+GIT_COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 
 build:
 	@echo "🔧 Building jfvm CLI..."
 	go build -o $(JFVM_BIN) .
-	@echo "🔧 Building jf shim..."
-	cd shim && go build -o $(SHIM_BIN) .
 
-install: build
+build-release:
+	@echo "🔧 Building jfvm CLI with version $(VERSION)..."
+	go build -ldflags "-X main.Version=$(VERSION) -X main.BuildDate=$(BUILD_DATE) -X main.GitCommit=$(GIT_COMMIT)" -o $(JFVM_BIN) .
+
+install: build-release
 	@echo "📂 Creating shim directory: $(SHIM_DIR)"
 	mkdir -p $(SHIM_DIR)
-	@echo "📥 Installing binaries to $(SHIM_DIR)"
+	@echo "📥 Installing jfvm binary to $(SHIM_DIR)"
 	cp $(JFVM_BIN) $(SHIM_DIR)/
-	cp shim/$(SHIM_BIN) $(SHIM_DIR)/
-	@echo "✅ Binaries installed."
+	@echo "✅ Binary installed."
 
 bootstrap: install
 	@echo "🔁 Checking shell config for PATH..."
@@ -34,13 +40,12 @@ test: build
 
 uninstall:
 	@echo "🗑️ Removing installed binaries..."
-	rm -f $(SHIM_DIR)/$(JFVM_BIN) $(SHIM_DIR)/$(SHIM_BIN)
+	rm -f $(SHIM_DIR)/$(JFVM_BIN)
 	@echo "✅ Uninstalled."
 
 clean:
 	@echo "🧹 Cleaning build artifacts..."
 	rm -f $(JFVM_BIN)
-	cd shim && rm -f $(SHIM_BIN)
 
 # E2E Testing
 .PHONY: test-e2e test-e2e-local test-e2e-ci test-e2e-ubuntu test-e2e-macos
