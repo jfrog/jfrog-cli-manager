@@ -207,7 +207,7 @@ REM Execute the binary with all arguments
 `
 }
 
-// UpdatePATH updates the user's shell profile to include jfvm shim in PATH
+// UpdatePATH updates the user's shell profile to include jfvm shim in PATH with highest priority
 func UpdatePATH() error {
 	// First, clean up the old bin directory if it exists
 	oldBinDir := filepath.Join(JfvmRoot, "bin")
@@ -218,47 +218,137 @@ func UpdatePATH() error {
 		}
 	}
 
+	// Get the current shell and clean up relevant profile files
 	shell := GetCurrentShell()
-	profileFile := GetShellProfile(shell)
+	var profileFiles []string
 
-	if profileFile == "" {
+	switch shell {
+	case "zsh":
+		profileFiles = []string{
+			filepath.Join(HomeDir, ".zshrc"),
+			filepath.Join(HomeDir, ".profile"), // zsh also loads .profile
+		}
+	case "bash":
+		profileFiles = []string{
+			filepath.Join(HomeDir, ".bashrc"),
+			filepath.Join(HomeDir, ".bash_profile"),
+			filepath.Join(HomeDir, ".profile"),
+		}
+	default:
+		// For other shells, just clean the primary profile
+		primaryProfile := GetShellProfile(shell)
+		if primaryProfile != "" {
+			profileFiles = []string{primaryProfile}
+		}
+	}
+
+	for _, profileFile := range profileFiles {
+		if err := cleanupProfileFile(profileFile); err != nil {
+			fmt.Printf("Warning: Failed to cleanup %s: %v\n", profileFile, err)
+		}
+	}
+
+	// Get the primary shell profile for adding the new configuration
+	primaryProfileFile := GetShellProfile(shell)
+
+	if primaryProfileFile == "" {
 		return fmt.Errorf("unsupported shell: %s", shell)
 	}
 
-	// Read current profile
-	content, err := os.ReadFile(profileFile)
+	// Read current primary profile
+	content, err := os.ReadFile(primaryProfileFile)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read profile file: %w", err)
 	}
 
 	profileContent := string(content)
 
-	// Remove any old jfvm PATH entries (both bin and shim)
-	lines := strings.Split(profileContent, "\n")
-	var newLines []string
-	for _, line := range lines {
-		if !strings.Contains(line, "~/.jfvm/bin") && !strings.Contains(line, JfvmShim) {
-			newLines = append(newLines, line)
+	// Check if jfvm shim PATH is already added with correct priority
+	if strings.Contains(profileContent, JfvmShim) {
+		// Verify it's at the beginning of PATH (highest priority)
+		if strings.Contains(profileContent, fmt.Sprintf("export PATH=\"%s:$PATH\"", JfvmShim)) {
+			fmt.Printf("jfvm PATH already configured with highest priority in %s\n", primaryProfileFile)
+			return nil
+		} else {
+			// Remove old incorrect PATH entry
+			fmt.Printf("Updating jfvm PATH configuration to ensure highest priority...\n")
 		}
 	}
-	profileContent = strings.Join(newLines, "\n")
 
-	// Check if jfvm shim PATH is already added
-	if strings.Contains(profileContent, JfvmShim) {
-		fmt.Printf("jfvm PATH already configured in %s\n", profileFile)
-		return nil
-	}
+	// Add jfvm shim PATH to profile with highest priority (prepend to PATH)
+	// Also add shell function for better priority handling (similar to nvm)
+	pathLine := fmt.Sprintf(`
 
-	// Add jfvm shim PATH to profile
-	pathLine := fmt.Sprintf("\n# jfvm PATH configuration\nexport PATH=\"%s:$PATH\"\n", JfvmShim)
+# jfvm PATH configuration - ensures jfvm-managed jf takes highest priority
+export PATH="%s:$PATH"
+
+# jfvm shell function for enhanced priority (similar to nvm approach)
+jf() {
+    # Check if jfvm shim exists and is executable
+    if [ -x "%s/jf" ]; then
+        # Execute jfvm-managed jf with highest priority
+        "%s/jf" "$@"
+    else
+        # Fallback to system jf if jfvm shim not available
+        command jf "$@"
+    fi
+}
+
+`, JfvmShim, JfvmShim, JfvmShim)
 
 	// Append to profile
-	if err := os.WriteFile(profileFile, []byte(profileContent+pathLine), 0644); err != nil {
+	if err := os.WriteFile(primaryProfileFile, []byte(profileContent+pathLine), 0644); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 
-	fmt.Printf("Added jfvm shim to PATH in %s\n", profileFile)
-	fmt.Printf("Please restart your terminal or run: source %s\n", profileFile)
+	fmt.Printf("✅ Added jfvm shim to PATH with highest priority in %s\n", primaryProfileFile)
+	fmt.Printf("🔧 jfvm-managed jf will now take precedence over system installations\n")
+	fmt.Printf("📝 Please restart your terminal or run: source %s\n", primaryProfileFile)
+
+	return nil
+}
+
+// cleanupProfileFile removes old jfvm PATH entries from a profile file
+func cleanupProfileFile(profileFile string) error {
+	// Check if file exists
+	if _, err := os.Stat(profileFile); os.IsNotExist(err) {
+		return nil // File doesn't exist, nothing to clean
+	}
+
+	// Read current profile
+	content, err := os.ReadFile(profileFile)
+	if err != nil {
+		return fmt.Errorf("failed to read profile file: %w", err)
+	}
+
+	profileContent := string(content)
+	originalContent := profileContent
+
+	// Remove any old jfvm PATH entries (both bin and shim)
+	lines := strings.Split(profileContent, "\n")
+	var newLines []string
+
+	for _, line := range lines {
+		// Skip lines that contain old jfvm PATH entries
+		if strings.Contains(line, "$HOME/.jfvm/bin") ||
+			strings.Contains(line, "~/.jfvm/bin") ||
+			strings.Contains(line, JfvmShim) ||
+			strings.Contains(line, "jfvm PATH") ||
+			strings.Contains(line, "jf() {") {
+			continue
+		}
+		newLines = append(newLines, line)
+	}
+
+	profileContent = strings.Join(newLines, "\n")
+
+	// Only write if content changed
+	if profileContent != originalContent {
+		if err := os.WriteFile(profileFile, []byte(profileContent), 0644); err != nil {
+			return fmt.Errorf("failed to write profile file: %w", err)
+		}
+		fmt.Printf("🧹 Cleaned up old jfvm entries from %s\n", profileFile)
+	}
 
 	return nil
 }
@@ -348,6 +438,44 @@ func CheckShimSetup() error {
 				return fmt.Errorf("shim is not executable")
 			}
 		}
+	}
+
+	return nil
+}
+
+// VerifyPriority checks if jfvm-managed jf has highest priority
+func VerifyPriority() error {
+	// Check if shim exists
+	if err := CheckShimSetup(); err != nil {
+		return fmt.Errorf("shim setup issue: %w", err)
+	}
+
+	// Check PATH order
+	path := os.Getenv("PATH")
+	pathDirs := strings.Split(path, string(os.PathListSeparator))
+
+	// Find jfvm shim in PATH
+	shimIndex := -1
+	systemJfIndex := -1
+
+	for i, dir := range pathDirs {
+		if strings.Contains(dir, ".jfvm/shim") {
+			shimIndex = i
+		}
+		// Check for common system jf locations
+		if strings.Contains(dir, "/usr/local/bin") || strings.Contains(dir, "/opt/homebrew/bin") || strings.Contains(dir, "/usr/bin") {
+			if systemJfIndex == -1 {
+				systemJfIndex = i
+			}
+		}
+	}
+
+	if shimIndex == -1 {
+		return fmt.Errorf("jfvm shim not found in PATH")
+	}
+
+	if systemJfIndex != -1 && shimIndex > systemJfIndex {
+		return fmt.Errorf("jfvm shim is not first in PATH (index %d vs system index %d)", shimIndex, systemJfIndex)
 	}
 
 	return nil

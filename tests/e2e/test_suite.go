@@ -529,4 +529,24 @@ func TestShimAndPATH(t *testing.T) {
 		ts.AssertContains(t, output, "Successfully activated")
 		ts.AssertContains(t, output, "takes priority over system jf")
 	})
+
+	t.Run("Health Check", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "health-check")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "jfvm Health Check")
+		ts.AssertContains(t, output, "Overall Status")
+	})
+
+	t.Run("Health Check with Fix", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "health-check", "--fix")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "jfvm Health Check")
+	})
+
+	t.Run("Health Check Verbose", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "health-check", "--verbose")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "jfvm Health Check")
+		ts.AssertContains(t, output, "Details:")
+	})
 }

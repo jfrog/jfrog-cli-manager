@@ -34,6 +34,7 @@ func main() {
 			cmd.Benchmark,
 			cmd.History,
 			cmd.VersionCmd,
+			cmd.HealthCheck,
 		},
 	}
 

@@ -96,9 +96,20 @@ var Use = &cli.Command{
 			fmt.Println("You may need to manually add jfvm shim to your PATH")
 		}
 
+		// Verify priority is working correctly
+		fmt.Println("Verifying jfvm priority...")
+		if err := utils.VerifyPriority(); err != nil {
+			fmt.Printf("⚠️  Priority verification failed: %v\n", err)
+			fmt.Println("This may be due to current shell session not being updated yet.")
+			fmt.Println("Please restart your terminal or run 'source ~/.bashrc' (or ~/.zshrc)")
+		} else {
+			fmt.Println("✅ Priority verification successful")
+		}
+
 		fmt.Printf("✅ Successfully activated jf version %s\n", version)
-		fmt.Printf("The jfvm-managed jf binary now takes priority over system jf\n")
-		fmt.Printf("Restart your terminal or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes\n")
+		fmt.Printf("🔧 jfvm-managed jf binary now takes highest priority over system installations\n")
+		fmt.Printf("📝 Restart your terminal or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes\n")
+		fmt.Printf("🔍 Run 'which jf' to verify jfvm-managed version is being used\n")
 
 		return nil
 	},
