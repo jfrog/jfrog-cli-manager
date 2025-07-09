@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: jfrog/homebrew-jfrog-cli-vm
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Download generated formula
         uses: dawidd6/action-download-artifact@v6
@@ -32,7 +32,7 @@ jobs:
 
       - name: Move and commit formula
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           mkdir -p Formula
           mv jfvm.rb Formula/jfvm.rb
