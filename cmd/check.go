@@ -436,6 +436,8 @@ func checkBinaryExecution(report *HealthReport, verbose bool) {
 	// Test jf execution
 	status := HealthStatus{Component: "jf Execution"}
 	cmd := exec.Command("jf", "--version")
+	// Disable history recording for internal health checks
+	cmd.Env = append(os.Environ(), "JFVM_NO_HISTORY=1")
 	output, err := cmd.Output()
 	if err != nil {
 		status.Status = "fail"
@@ -521,6 +523,8 @@ func checkPerformance(report *HealthReport, verbose bool) {
 	status = HealthStatus{Component: "jf Performance"}
 	start = time.Now()
 	cmd = exec.Command("jf", "--version")
+	// Disable history recording for internal health checks
+	cmd.Env = append(os.Environ(), "JFVM_NO_HISTORY=1")
 	if err := cmd.Run(); err != nil {
 		status.Status = "fail"
 		status.Message = "jf version command failed"

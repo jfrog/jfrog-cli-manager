@@ -166,6 +166,9 @@ func createUnixShim() string {
 	return `#!/bin/bash
 # jfvm shim - redirects jf commands to the active version
 
+# Capture the full command line as typed
+FULL_CMD="$(basename "$0") $@"
+
 # Debug output if JFVM_DEBUG is set
 if [ "$JFVM_DEBUG" = "1" ]; then
     echo "[shim] Executing jfvm shim" >&2
@@ -193,8 +196,38 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-# Execute the binary with all arguments
-exec "$BINARY_PATH" "$@"
+# Skip history recording if disabled or in debug mode
+if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
+    exec "$BINARY_PATH" "$@"
+fi
+
+# Record command execution in history (lightweight)
+START_TIME=$(date +%s)
+
+# Execute the binary and capture output
+OUTPUT=$("$BINARY_PATH" "$@" 2>&1)
+EXIT_CODE=$?
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+
+# Record history asynchronously to avoid blocking
+# Try to find the jfvm binary in the current directory first, then fallback to PATH
+JFVM_BINARY=""
+if [ -x "./jfvm" ]; then
+    JFVM_BINARY="./jfvm"
+elif [ -x "$(dirname "$0")/../jfvm" ]; then
+    JFVM_BINARY="$(dirname "$0")/../jfvm"
+else
+    JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
+fi
+
+if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
+    ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "$OUTPUT" >/dev/null 2>&1) &
+fi
+
+# Output the result immediately
+echo "$OUTPUT"
+exit $EXIT_CODE
 `
 }
 
@@ -220,8 +253,19 @@ if not exist "%BINARY_PATH%" (
     exit /b 1
 )
 
+REM Record command execution in history
+set COMMAND=jf %*
+set START_TIME=%TIME%
+
 REM Execute the binary with all arguments
 "%BINARY_PATH%" %*
+set EXIT_CODE=%ERRORLEVEL%
+
+REM Record command execution in history using jfvm binary
+where jfvm >nul 2>&1
+if %ERRORLEVEL% == 0 (
+    jfvm add-history-entry "%ACTIVE_VERSION%" "%COMMAND%" "0" "%EXIT_CODE%" "Windows output capture not implemented" >nul 2>&1
+)
 `
 }
 

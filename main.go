@@ -52,6 +52,7 @@ func main() {
 			cmd.Compare,
 			cmd.Benchmark,
 			cmd.History,
+			cmd.AddHistoryEntryCmd,
 			cmd.HealthCheck,
 		},
 	}
