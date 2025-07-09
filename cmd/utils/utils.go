@@ -542,3 +542,19 @@ func VerifyPriority() error {
 
 	return nil
 }
+
+// SwitchToVersion switches to the specified version for command execution
+func SwitchToVersion(version string) error {
+	// Check if version exists
+	binPath := filepath.Join(JfvmVersions, version, BinaryName)
+	if _, err := os.Stat(binPath); os.IsNotExist(err) {
+		return fmt.Errorf("version %s not found", version)
+	}
+
+	// Write the version to config file
+	if err := os.WriteFile(JfvmConfig, []byte(version), 0644); err != nil {
+		return fmt.Errorf("failed to write config file: %w", err)
+	}
+
+	return nil
+}
