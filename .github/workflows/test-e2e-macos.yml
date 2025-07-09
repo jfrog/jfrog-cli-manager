@@ -24,11 +24,26 @@ jobs:
           make build-release
           chmod +x jfvm
 
+      - name: Set up jfvm environment
+        run: |
+          echo "Setting up jfvm environment..."
+          # Install a test version
+          ./jfvm install 2.74.0
+          # Use the version to create the shim
+          ./jfvm use 2.74.0
+          # Add shim to PATH
+          echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+          # Verify shim is working
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          which jf
+          jf --version
+
       - name: Run E2E tests
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
           TEST_TIMEOUT: "10m"
         run: |
+          export PATH="$HOME/.jfvm/shim:$PATH"
           # Run core functionality tests
           echo "Running core functionality tests..."
           go test -v -timeout 10m ./tests/e2e/... -run "TestCoreVersionManagement"
@@ -45,6 +60,7 @@ jobs:
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
         run: |
+          export PATH="$HOME/.jfvm/shim:$PATH"
           # Install a test version
           ./jfvm install 2.74.0
           
@@ -64,6 +80,7 @@ jobs:
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
         run: |
+          export PATH="$HOME/.jfvm/shim:$PATH"
           # Test health check with fix flag
           ./jfvm health-check --fix
           
@@ -81,6 +98,7 @@ jobs:
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
         run: |
+          export PATH="$HOME/.jfvm/shim:$PATH"
           # Test using latest version
           ./jfvm use latest
           
@@ -94,6 +112,7 @@ jobs:
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
         run: |
+          export PATH="$HOME/.jfvm/shim:$PATH"
           # Test health check with performance and security flags
           ./jfvm health-check --performance --security --verbose
 

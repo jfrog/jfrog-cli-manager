@@ -47,9 +47,26 @@ jobs:
         chmod +x jfvm
         ./jfvm --version
 
+    - name: Set up jfvm environment
+      run: |
+        echo "Setting up jfvm environment..."
+        # Install a test version
+        ./jfvm install 2.74.0
+        # Use the version to create the shim
+        ./jfvm use 2.74.0
+        # Add shim to PATH
+        echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+        # Verify shim is working
+        export PATH="$HOME/.jfvm/shim:$PATH"
+        which jf
+        jf --version
+
     - name: Run E2E tests
+      env:
+        JFVM_PATH: ${{ github.workspace }}/jfvm
       run: |
         echo "Running E2E tests on Ubuntu..."
+        export PATH="$HOME/.jfvm/shim:$PATH"
         chmod +x tests/e2e/run_ci_tests.sh
         ./tests/e2e/run_ci_tests.sh
 
@@ -96,9 +113,26 @@ jobs:
         chmod +x jfvm
         ./jfvm --version
 
+    - name: Set up jfvm environment
+      run: |
+        echo "Setting up jfvm environment..."
+        # Install a test version
+        ./jfvm install 2.74.0
+        # Use the version to create the shim
+        ./jfvm use 2.74.0
+        # Add shim to PATH
+        echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+        # Verify shim is working
+        export PATH="$HOME/.jfvm/shim:$PATH"
+        which jf
+        jf --version
+
     - name: Run E2E tests
+      env:
+        JFVM_PATH: ${{ github.workspace }}/jfvm
       run: |
         echo "Running E2E tests on macOS..."
+        export PATH="$HOME/.jfvm/shim:$PATH"
         chmod +x tests/e2e/run_ci_tests.sh
         ./tests/e2e/run_ci_tests.sh
 
