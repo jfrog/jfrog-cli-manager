@@ -21,7 +21,8 @@ jobs:
 
       - name: Run unit tests
         run: |
-          go test -v ./...
+          # Run unit tests only (exclude E2E tests that require built binary)
+          go test -v ./cmd/... ./internal/...
 
   test-e2e-ubuntu:
     runs-on: ubuntu-latest
@@ -72,6 +73,15 @@ jobs:
           # Use the version
           ./jfvm use 2.74.0
           
+          # Source the shell profile to apply PATH changes (check current shell)
+          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
+            source ~/.bashrc
+          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
+            source ~/.zshrc
+          else
+            echo "Shell profile sourcing skipped for current shell: $0"
+          fi
+          
           # Verify which jf is being used
           which jf
           
@@ -87,6 +97,15 @@ jobs:
         run: |
           # Test health check with fix flag
           ./jfvm health-check --fix
+          
+          # Source the shell profile to apply PATH changes (check current shell)
+          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
+            source ~/.bashrc
+          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
+            source ~/.zshrc
+          else
+            echo "Shell profile sourcing skipped for current shell: $0"
+          fi
           
           # Verify PATH configuration
           echo "PATH entries:"
@@ -133,6 +152,15 @@ jobs:
           # Use the version
           jfvm use 2.74.0
           
+          # Source the shell profile to apply PATH changes (check current shell)
+          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
+            source ~/.bashrc
+          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
+            source ~/.zshrc
+          else
+            echo "Shell profile sourcing skipped for current shell: $0"
+          fi
+          
           # Verify which jf is being used
           which jf
           
@@ -146,6 +174,15 @@ jobs:
         run: |
           # Test health check with fix flag
           jfvm health-check --fix
+          
+          # Source the shell profile to apply PATH changes (check current shell)
+          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
+            source ~/.bashrc
+          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
+            source ~/.zshrc
+          else
+            echo "Shell profile sourcing skipped for current shell: $0"
+          fi
           
           # Verify PATH configuration
           echo "PATH entries:"
@@ -203,6 +240,9 @@ jobs:
           ./jfvm --help
           ./jfvm list
           ./jfvm health-check
+          
+          # Test that binary works correctly
+          ./jfvm --version
 
   upload-artifacts:
     runs-on: ubuntu-latest

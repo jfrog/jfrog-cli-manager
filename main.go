@@ -1,14 +1,13 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/jfrog/jfrog-cli-vm/cmd"
 	"github.com/urfave/cli/v2"
 )
 
-// Version information - these can be set during build time using ldflags
 var (
 	Version   = "dev"
 	BuildDate = "unknown"
@@ -16,15 +15,28 @@ var (
 )
 
 func main() {
-	log.Println("Starting jfvm CLI...")
 	app := &cli.App{
-		Name:                 "jfvm",
-		Usage:                "Manage multiple versions of JFrog CLI",
-		Version:              Version,
-		EnableBashCompletion: true,
+		Name:  "jfvm",
+		Usage: "Manage multiple versions of JFrog CLI",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "Print the version",
+			},
+		},
+		Before: func(c *cli.Context) error {
+			if c.Bool("version") {
+				fmt.Printf("jfvm version %s\n", Version)
+				fmt.Printf("  Build Date: %s\n", BuildDate)
+				fmt.Printf("  Git Commit: %s\n", GitCommit)
+				os.Exit(0)
+			}
+			return nil
+		},
 		Commands: []*cli.Command{
-			cmd.Install,
 			cmd.Use,
+			cmd.Install,
 			cmd.List,
 			cmd.Remove,
 			cmd.Clear,
@@ -33,12 +45,12 @@ func main() {
 			cmd.Compare,
 			cmd.Benchmark,
 			cmd.History,
-			cmd.VersionCmd,
 			cmd.HealthCheck,
 		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf("Error running jfvm CLI: %v", err)
+		fmt.Fprintf(os.Stderr, "Error running jfvm CLI: %v\n", err)
+		os.Exit(1)
 	}
 }
