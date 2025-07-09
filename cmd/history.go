@@ -4,18 +4,22 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
 	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
 )
 
 type HistoryEntry struct {
+	ID        int       `json:"id"`
 	Version   string    `json:"version"`
 	Timestamp time.Time `json:"timestamp"`
 	Command   string    `json:"command,omitempty"`
@@ -82,10 +86,26 @@ var History = &cli.Command{
 			Usage: "Show only failed commands (exit code != 0)",
 			Value: false,
 		},
+		&cli.BoolFlag{
+			Name:  "disable-recording",
+			Usage: "Disable history recording (set JFVM_NO_HISTORY=1 for permanent disable)",
+			Value: false,
+		},
 	},
 	Action: func(c *cli.Context) error {
 		if c.Bool("clear") {
 			return clearHistory()
+		}
+
+		// Handle execute by ID using !{id} syntax
+		if c.Args().Len() > 0 {
+			arg := c.Args().Get(0)
+			if strings.HasPrefix(arg, "!") {
+				idStr := strings.TrimPrefix(arg, "!")
+				if id, err := strconv.Atoi(idStr); err == nil && id > 0 {
+					return executeHistoryEntry(id)
+				}
+			}
 		}
 
 		historyFile := filepath.Join(utils.JfvmRoot, "history.json")
@@ -172,6 +192,11 @@ func saveHistory(historyFile string, entries []HistoryEntry) error {
 }
 
 func AddHistoryEntry(version, command string, duration time.Duration, exitCode int, stdout, stderr string) {
+	// Skip recording jfvm commands - only record actual jf commands
+	if strings.HasPrefix(command, "jfvm ") {
+		return
+	}
+
 	historyFile := filepath.Join(utils.JfvmRoot, "history.json")
 
 	entries, err := loadHistory(historyFile)
@@ -198,11 +223,22 @@ func AddHistoryEntry(version, command string, duration time.Duration, exitCode i
 		Stderr:    stderr,
 	}
 
+	// Assign the next available ID
+	nextID := 1
+	if len(entries) > 0 {
+		nextID = entries[len(entries)-1].ID + 1
+	}
+	entry.ID = nextID
+
 	entries = append(entries, entry)
 
 	// Keep only last 1000 entries to prevent unlimited growth
 	if len(entries) > 1000 {
 		entries = entries[len(entries)-1000:]
+		// Reassign IDs after truncation to maintain sequential order
+		for i := range entries {
+			entries[i].ID = i + 1
+		}
 	}
 
 	saveHistory(historyFile, entries)
@@ -230,74 +266,76 @@ func displayHistory(entries []HistoryEntry, limit int, format string, noColor, s
 	}
 }
 
+// formatDuration returns a human-friendly duration string
+func formatDurationMs(ms int64) string {
+	d := time.Duration(ms) * time.Millisecond
+	if d < time.Millisecond {
+		return fmt.Sprintf("%.2fμs", float64(d.Nanoseconds())/1000)
+	} else if d < time.Second {
+		return fmt.Sprintf("%.2fms", float64(d.Nanoseconds())/1e6)
+	} else {
+		return fmt.Sprintf("%.2fs", d.Seconds())
+	}
+}
+
 func displayHistoryTable(entries []HistoryEntry, showOutput bool) {
 	var (
-		blueColor   = color.New(color.FgBlue)
-		greenColor  = color.New(color.FgGreen)
-		yellowColor = color.New(color.FgYellow)
-		redColor    = color.New(color.FgRed)
+		greenColor = color.New(color.FgGreen)
+		redColor   = color.New(color.FgRed)
+		boldColor  = color.New(color.Bold)
 	)
 
 	fmt.Printf("📊 JFVM USAGE HISTORY\n")
 	fmt.Printf("═══════════════════════════════════════════════════════════════════════════════════\n\n")
 
-	if showOutput {
-		fmt.Printf("%-20s %-15s %-12s %-8s %-30s\n", "TIMESTAMP", "VERSION", "DURATION", "EXIT", "COMMAND")
-	} else {
-		fmt.Printf("%-20s %-15s %-12s %-30s\n", "TIMESTAMP", "VERSION", "DURATION", "COMMAND")
-	}
-	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
+	// Create table with basic configuration
+	table := tablewriter.NewWriter(os.Stdout)
+	table.Header("ID", "TIME", "VERSION", "DURATION", "EXIT", "COMMAND")
 
-	for _, entry := range entries {
+	for i, entry := range entries {
 		timestamp := entry.Timestamp.Format("2006-01-02 15:04:05")
-		duration := ""
-		if entry.Duration > 0 {
-			duration = fmt.Sprintf("%.0fms", float64(entry.Duration))
-		}
-
+		duration := formatDurationMs(entry.Duration)
 		command := entry.Command
-		if !showOutput && len(command) > 28 {
-			command = command[:25] + "..."
+		if !showOutput && len(command) > 50 {
+			command = command[:47] + "..."
 		}
 
-		var durationColor *color.Color = greenColor
-		if entry.Duration > 5000 {
-			durationColor = yellowColor
-		}
-
-		exitCodeColor := greenColor
 		exitCodeText := "0"
 		if entry.ExitCode != 0 {
-			exitCodeColor = redColor
 			exitCodeText = fmt.Sprintf("%d", entry.ExitCode)
 		}
 
-		if showOutput {
-			fmt.Printf("%-20s %-15s %-12s %-8s %-30s\n",
-				blueColor.Sprint(timestamp),
-				greenColor.Sprint(entry.Version),
-				durationColor.Sprint(duration),
-				exitCodeColor.Sprint(exitCodeText),
-				command)
+		// Apply colors
+		coloredTimestamp := timestamp
+		coloredVersion := entry.Version
+		coloredExitCode := exitCodeText
 
+		if i == 0 {
+			coloredTimestamp = boldColor.Add(color.FgBlue).Sprint(timestamp)
+			coloredVersion = boldColor.Add(color.FgBlue).Sprint(entry.Version)
+		} else {
+			coloredVersion = greenColor.Sprint(entry.Version)
+		}
+
+		if entry.ExitCode != 0 {
+			coloredExitCode = redColor.Sprint(exitCodeText)
+		}
+
+		table.Append(fmt.Sprintf("%d", entry.ID), coloredTimestamp, coloredVersion, duration, coloredExitCode, command)
+
+		// Print output if requested
+		if showOutput && (entry.Stdout != "" || entry.Stderr != "") {
+			table.Append("", "", "", "", "", "") // Empty row for spacing
 			if entry.Stdout != "" {
-				fmt.Printf("  📤 STDOUT:\n%s\n", entry.Stdout)
+				table.Append("", "", "", "", "", "📤 STDOUT: "+entry.Stdout)
 			}
 			if entry.Stderr != "" {
-				fmt.Printf("  📥 STDERR:\n%s\n", redColor.Sprint(entry.Stderr))
+				table.Append("", "", "", "", "", "📥 STDERR: "+redColor.Sprint(entry.Stderr))
 			}
-			if entry.Stdout != "" || entry.Stderr != "" {
-				fmt.Println()
-			}
-		} else {
-			fmt.Printf("%-20s %-15s %-12s %-30s\n",
-				blueColor.Sprint(timestamp),
-				greenColor.Sprint(entry.Version),
-				durationColor.Sprint(duration),
-				command)
 		}
 	}
 
+	table.Render()
 	fmt.Printf("\n📈 Total entries: %d\n", len(entries))
 }
 
@@ -444,6 +482,49 @@ func displayHistoryStats(entries []HistoryEntry, noColor bool) {
 			fmt.Printf("Average per day: %s\n", yellowColor.Sprintf("%.1f", avgPerDay))
 		}
 	}
+}
+
+func executeHistoryEntry(id int) error {
+	historyFile := filepath.Join(utils.JfvmRoot, "history.json")
+	entries, err := loadHistory(historyFile)
+	if err != nil {
+		return fmt.Errorf("failed to load history: %w", err)
+	}
+
+	// Find the entry with the specified ID
+	var targetEntry *HistoryEntry
+	for _, entry := range entries {
+		if entry.ID == id {
+			targetEntry = &entry
+			break
+		}
+	}
+
+	if targetEntry == nil {
+		return fmt.Errorf("history entry with ID %d not found", id)
+	}
+
+	fmt.Printf("🔄 Executing history entry #%d: %s\n", id, targetEntry.Command)
+	fmt.Printf("📋 Version: %s\n", targetEntry.Version)
+
+	// First, switch to the required version
+	if err := utils.SwitchToVersion(targetEntry.Version); err != nil {
+		return fmt.Errorf("failed to switch to version %s: %w", targetEntry.Version, err)
+	}
+
+	// Parse the command to extract the actual jf command (remove "jf " prefix)
+	command := targetEntry.Command
+	if strings.HasPrefix(command, "jf ") {
+		command = strings.TrimPrefix(command, "jf ")
+	}
+
+	// Execute the command
+	cmd := exec.Command("jf", strings.Fields(command)...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
 }
 
 func clearHistory() error {

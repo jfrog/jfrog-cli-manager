@@ -79,6 +79,38 @@ var Use = &cli.Command{
 		}
 
 		fmt.Printf("Writing selected version '%s' to config file: %s\n", version, utils.JfvmConfig)
-		return os.WriteFile(utils.JfvmConfig, []byte(version), 0644)
+		if err := os.WriteFile(utils.JfvmConfig, []byte(version), 0644); err != nil {
+			return fmt.Errorf("failed to write config file: %w", err)
+		}
+
+		// Set up shim to redirect jf commands to the active version
+		fmt.Println("Setting up jf shim...")
+		if err := utils.SetupShim(); err != nil {
+			return fmt.Errorf("failed to setup shim: %w", err)
+		}
+
+		// Update PATH to prioritize jfvm-managed jf over system jf
+		fmt.Println("Updating PATH to prioritize jfvm-managed jf...")
+		if err := utils.UpdatePATH(); err != nil {
+			fmt.Printf("Warning: Failed to update PATH: %v\n", err)
+			fmt.Println("You may need to manually add jfvm shim to your PATH")
+		}
+
+		// Verify priority is working correctly
+		fmt.Println("Verifying jfvm priority...")
+		if err := utils.VerifyPriority(); err != nil {
+			fmt.Printf("⚠️  Priority verification failed: %v\n", err)
+			fmt.Println("This may be due to current shell session not being updated yet.")
+			fmt.Println("Please restart your terminal or run 'source ~/.bashrc' (or ~/.zshrc)")
+		} else {
+			fmt.Println("✅ Priority verification successful")
+		}
+
+		fmt.Printf("✅ Successfully activated jf version %s\n", version)
+		fmt.Printf("🔧 jfvm-managed jf binary now takes highest priority over system installations\n")
+		fmt.Printf("📝 Restart your terminal or run 'source ~/.bashrc' (or ~/.zshrc) to apply changes\n")
+		fmt.Printf("🔍 Run 'which jf' to verify jfvm-managed version is being used\n")
+
+		return nil
 	},
 }

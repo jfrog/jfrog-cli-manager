@@ -221,3 +221,14 @@ var History = CommandDescription{
 		},
 	},
 }
+
+var Version = CommandDescription{
+	Usage:       "Show jfvm version information",
+	Description: "Displays detailed version information including build date, git commit, and platform details.",
+	Examples: []Example{
+		{
+			Command:     "jfvm version",
+			Description: "Show version information",
+		},
+	},
+}

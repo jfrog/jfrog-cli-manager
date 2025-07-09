@@ -1,22 +1,49 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"os"
 
 	"github.com/jfrog/jfrog-cli-vm/cmd"
+	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
 	"github.com/urfave/cli/v2"
 )
 
+var (
+	Version   = "dev"
+	BuildDate = "unknown"
+	GitCommit = "unknown"
+)
+
 func main() {
-	log.Println("Starting jfvm CLI...")
 	app := &cli.App{
-		Name:                 "jfvm",
-		Usage:                "Manage multiple versions of JFrog CLI",
-		EnableBashCompletion: true,
+		Name:  "jfvm",
+		Usage: "Manage multiple versions of JFrog CLI",
+		Flags: []cli.Flag{
+			&cli.BoolFlag{
+				Name:    "version",
+				Aliases: []string{"v"},
+				Usage:   "Print the version",
+			},
+		},
+		Before: func(c *cli.Context) error {
+			if c.Bool("version") {
+				fmt.Printf("jfvm version %s\n", Version)
+				fmt.Printf("  Build Date: %s\n", BuildDate)
+				fmt.Printf("  Git Commit: %s\n", GitCommit)
+				os.Exit(0)
+			}
+
+			// Initialize jfvm directories
+			if err := utils.InitializeJfvmDirectories(); err != nil {
+				return fmt.Errorf("failed to initialize jfvm directories: %w", err)
+			}
+
+			return nil
+		},
 		Commands: []*cli.Command{
-			cmd.Install,
 			cmd.Use,
+			cmd.Install,
 			cmd.List,
 			cmd.Remove,
 			cmd.Clear,
@@ -25,10 +52,13 @@ func main() {
 			cmd.Compare,
 			cmd.Benchmark,
 			cmd.History,
+			cmd.AddHistoryEntryCmd,
+			cmd.HealthCheck,
 		},
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatalf("Error running jfvm CLI: %v", err)
+		fmt.Fprintf(os.Stderr, "Error running jfvm CLI: %v\n", err)
+		os.Exit(1)
 	}
 }

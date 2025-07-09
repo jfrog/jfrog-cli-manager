@@ -1,0 +1,143 @@
+name: Test Homebrew Installation
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  test-brew-installation:
+    runs-on: macos-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Homebrew
+        uses: Homebrew/actions/setup-homebrew@master
+
+      - name: Install jfvm via Homebrew
+        run: |
+          # Add the jfrog tap
+          brew tap jfrog/jfrog-cli-vm
+          
+          # Install jfvm
+          brew install jfvm
+          
+          # Verify installation
+          jfvm --version
+
+      - name: Test basic functionality
+        run: |
+          # Test help command
+          jfvm --help
+          
+          # Test list command
+          jfvm list
+          
+          # Test health check
+          jfvm health-check
+
+      - name: Test enhanced priority system
+        run: |
+          # Install a test version
+          jfvm install 2.74.0
+          
+          # Use the version
+          jfvm use 2.74.0
+          
+          # Verify which jf is being used
+          which jf
+          
+          # Test jf execution
+          jf --version
+          
+          # Run health check to verify priority
+          jfvm health-check --verbose
+
+      - name: Test health check with fixes
+        run: |
+          # Test health check with fix flag
+          jfvm health-check --fix
+          
+          # Verify PATH configuration
+          echo "PATH entries:"
+          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          
+          # Test which jf again
+          which jf
+
+      - name: Test latest version functionality
+        run: |
+          # Test using latest version
+          jfvm use latest
+          
+          # Verify latest version is active
+          jf --version
+          
+          # Check health status
+          jfvm health-check
+
+      - name: Test alias functionality
+        run: |
+          # Create an alias
+          jfvm alias set test-alias 2.74.0
+          
+          # Use the alias
+          jfvm use test-alias
+          
+          # Verify alias works
+          jf --version
+
+      - name: Test project-specific version
+        run: |
+          # Create a .jfrog-version file
+          echo "2.74.0" > .jfrog-version
+          
+          # Use without arguments (should read from .jfrog-version)
+          jfvm use
+          
+          # Verify correct version is active
+          jf --version
+          
+          # Clean up
+          rm .jfrog-version
+
+      - name: Test performance and security checks
+        run: |
+          # Test health check with performance and security flags
+          jfvm health-check --performance --security --verbose
+
+      - name: Test error handling
+        run: |
+          # Test using non-existent version
+          jfvm use non-existent-version || echo "Expected error for non-existent version"
+          
+          # Test using invalid alias
+          jfvm use invalid-alias || echo "Expected error for invalid alias"
+
+      - name: Verify final state
+        run: |
+          # Final health check
+          jfvm health-check
+          
+          # List installed versions
+          jfvm list
+          
+          # Show which jf is active
+          which jf
+          jf --version
+          
+          # Show PATH entries
+          echo "Final PATH entries:"
+          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # Uninstall jfvm
+          brew uninstall jfvm || true
+          
+          # Remove tap
+          brew untap jfrog/jfrog-cli-vm || true 

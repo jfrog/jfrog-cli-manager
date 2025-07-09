@@ -67,7 +67,7 @@ jfvm install 2.74.0
 ```
 
 #### `jfvm use <version or alias>`
-Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed).
+Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed). Automatically sets up PATH priority so jfvm-managed `jf` takes precedence over system-installed versions.
 ```bash
 jfvm use 2.74.0
 jfvm use latest
@@ -104,6 +104,27 @@ Links a **locally built `jf` binary** to be used via `jfvm`.
 jfvm link --from /Users/Jfrog/go/bin/jf --name local-dev
 jfvm use local-dev
 ```
+
+#### `jfvm health-check`
+Performs comprehensive health check of jfvm installation with various options.
+```bash
+# Basic health check
+jfvm health-check
+
+# Detailed health check with verbose output
+jfvm health-check --verbose
+
+# Health check with automatic fixes
+jfvm health-check --fix
+
+# Include performance and security checks
+jfvm health-check --performance --security
+
+# All options combined
+jfvm health-check --verbose --fix --performance --security
+```
+
+
 
 ### Advanced Features
 
@@ -199,12 +220,33 @@ jfvm use
 
 ---
 
-## ⚙️ Shell Integration
-Add this to your shell profile (`.zshrc`, `.bashrc`, etc.):
+## ⚙️ Shell Integration & Priority Management
+jfvm automatically configures your shell to ensure jfvm-managed `jf` binaries have **highest priority** over system-installed versions. When you run `jfvm use <version>`, it:
+
+1. **Creates a shim** at `~/.jfvm/shim/jf` that redirects to the active version
+2. **Updates your PATH** to prioritize the jfvm shim directory (prepends to PATH)
+3. **Adds a shell function** for enhanced priority handling (similar to nvm)
+4. **Verifies priority** to ensure jfvm-managed versions take precedence over Homebrew or system-installed jf
+
+The configuration is automatically added to your shell profile (`.zshrc`, `.bashrc`, etc.):
 ```bash
+# jfvm PATH configuration - ensures jfvm-managed jf takes highest priority
 export PATH="$HOME/.jfvm/shim:$PATH"
+
+# jfvm shell function for enhanced priority (similar to nvm approach)
+jf() {
+    # Check if jfvm shim exists and is executable
+    if [ -x "$HOME/.jfvm/shim/jf" ]; then
+        # Execute jfvm-managed jf with highest priority
+        "$HOME/.jfvm/shim/jf" "$@"
+    else
+        # Fallback to system jf if jfvm shim not available
+        command jf "$@"
+    fi
+}
 ```
-This allows the shimmed `jf` command to delegate to the correct version transparently.
+
+
 
 ### Debug Mode
 Set `JFVM_DEBUG=1` to see detailed shim execution information:
@@ -213,6 +255,46 @@ export JFVM_DEBUG=1
 # Will show which version is being executed
 jf --version
 ```
+
+### Troubleshooting PATH Issues
+
+If `jf` is still using the system version instead of jfvm-managed version:
+
+1. **Run the health check command:**
+   ```bash
+   jfvm health-check --fix
+   # This will verify all aspects of jfvm setup and attempt to fix issues
+   ```
+
+2. **Check which jf is being used:**
+   ```bash
+   which jf
+   # Should show: /Users/username/.jfvm/shim/jf
+   ```
+
+3. **Verify PATH order:**
+   ```bash
+   echo $PATH
+   # ~/.jfvm/shim should appear before /usr/local/bin or /opt/homebrew/bin
+   ```
+
+4. **Re-run use command:**
+   ```bash
+   jfvm use <version>
+   source ~/.zshrc  # or ~/.bashrc
+   ```
+
+5. **Manual PATH fix:**
+   ```bash
+   # Add this to your shell profile
+   export PATH="$HOME/.jfvm/shim:$PATH"
+   ```
+
+6. **Check for shell function conflicts:**
+   ```bash
+   type jf
+   # Should show the jfvm shell function, not a system binary
+   ```
 
 ---
 
@@ -275,6 +357,17 @@ brew uninstall jfvm
 - History is automatically tracked in `~/.jfvm/history.json`
 - Limited to 1000 entries to prevent unlimited growth
 - Includes command execution timing and metadata
+
+### Health Check Features
+- **System Environment**: OS compatibility, architecture support, shell detection
+- **Installation Status**: jfvm directories, shim setup, PATH configuration
+- **Priority Verification**: Ensures jfvm-managed `jf` has highest priority
+- **Binary Execution**: Tests both `jfvm` and `jf` command execution
+- **Network Connectivity**: GitHub API and JFrog releases connectivity
+- **Performance Benchmarks**: Command execution timing and performance analysis
+- **Security Checks**: File permissions and suspicious file detection
+- **Auto-Fix Capability**: Automatically fixes common configuration issues
+- **JSON Output**: Machine-readable output for CI/CD integration
 
 ### Performance Optimization
 - Commands run in parallel when possible
