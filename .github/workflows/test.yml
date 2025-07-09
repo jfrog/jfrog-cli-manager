@@ -73,14 +73,8 @@ jobs:
           # Use the version
           ./jfvm use 2.74.0
           
-          # Source the shell profile to apply PATH changes (check current shell)
-          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
-            source ~/.bashrc
-          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
-            source ~/.zshrc
-          else
-            echo "Shell profile sourcing skipped for current shell: $0"
-          fi
+          # Export jfvm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Verify which jf is being used
           which jf
@@ -98,14 +92,8 @@ jobs:
           # Test health check with fix flag
           ./jfvm health-check --fix
           
-          # Source the shell profile to apply PATH changes (check current shell)
-          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
-            source ~/.bashrc
-          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
-            source ~/.zshrc
-          else
-            echo "Shell profile sourcing skipped for current shell: $0"
-          fi
+          # Export jfvm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Verify PATH configuration
           echo "PATH entries:"
@@ -152,14 +140,8 @@ jobs:
           # Use the version
           jfvm use 2.74.0
           
-          # Source the shell profile to apply PATH changes (check current shell)
-          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
-            source ~/.bashrc
-          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
-            source ~/.zshrc
-          else
-            echo "Shell profile sourcing skipped for current shell: $0"
-          fi
+          # Export jfvm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Verify which jf is being used
           which jf
@@ -175,14 +157,8 @@ jobs:
           # Test health check with fix flag
           jfvm health-check --fix
           
-          # Source the shell profile to apply PATH changes (check current shell)
-          if [ "$0" = "bash" ] || [ "$0" = "-bash" ] || [ "$0" = "/bin/bash" ]; then
-            source ~/.bashrc
-          elif [ "$0" = "zsh" ] || [ "$0" = "-zsh" ] || [ "$0" = "/bin/zsh" ]; then
-            source ~/.zshrc
-          else
-            echo "Shell profile sourcing skipped for current shell: $0"
-          fi
+          # Export jfvm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Verify PATH configuration
           echo "PATH entries:"
