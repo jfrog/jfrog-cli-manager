@@ -2,6 +2,7 @@ package e2e
 
 import (
 	"context"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,13 +18,39 @@ type TestSuite struct {
 	OriginalPWD string
 }
 
+// findJfvmBinary searches upwards from the current directory for the jfvm binary
+func findJfvmBinary() (string, error) {
+	// Check JFVM_PATH env var first
+	if envPath := os.Getenv("JFVM_PATH"); envPath != "" {
+		if _, err := os.Stat(envPath); err == nil {
+			return envPath, nil
+		}
+	}
+	// Start from current dir and walk up
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		candidate := filepath.Join(dir, "jfvm")
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			break // reached root
+		}
+		dir = parent
+	}
+	return "", os.ErrNotExist
+}
+
 // SetupTestSuite initializes the test environment
 func SetupTestSuite(t *testing.T) *TestSuite {
-	// Get the path to the jfvm binary
-	jfvmPath := os.Getenv("JFVM_PATH")
-	if jfvmPath == "" {
-		// Default to current directory if not set
-		jfvmPath = "./jfvm"
+	// Find the jfvm binary robustly
+	jfvmSrc, err := findJfvmBinary()
+	if err != nil {
+		t.Fatalf("jfvm binary not found in any parent directory or JFVM_PATH. Please build it before running tests.")
 	}
 
 	// Create test directory
@@ -31,6 +58,23 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
+
+	// Copy jfvm binary into testDir
+	jfvmDst := filepath.Join(testDir, "jfvm")
+	srcFile, err := os.Open(jfvmSrc)
+	if err != nil {
+		t.Fatalf("Failed to open jfvm binary: %v", err)
+	}
+	defer srcFile.Close()
+	dstFile, err := os.Create(jfvmDst)
+	if err != nil {
+		t.Fatalf("Failed to create jfvm binary in test dir: %v", err)
+	}
+	defer dstFile.Close()
+	if _, err := io.Copy(dstFile, srcFile); err != nil {
+		t.Fatalf("Failed to copy jfvm binary: %v", err)
+	}
+	os.Chmod(jfvmDst, 0755) // Ensure it's executable
 
 	// Store original working directory
 	originalPWD, err := os.Getwd()
@@ -44,7 +88,7 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 	}
 
 	return &TestSuite{
-		JfvmPath:    jfvmPath,
+		JfvmPath:    "./jfvm",
 		TestDir:     testDir,
 		OriginalPWD: originalPWD,
 	}
