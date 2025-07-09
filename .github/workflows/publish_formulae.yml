@@ -6,6 +6,11 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -14,13 +19,15 @@ permissions:
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap repository
         uses: actions/checkout@v3
         with:
           repository: jfrog/homebrew-jfrog-cli-vm
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Download generated formula
         uses: dawidd6/action-download-artifact@v6
@@ -32,13 +39,13 @@ jobs:
 
       - name: Move and commit formula
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           mkdir -p Formula
           mv jfvm.rb Formula/jfvm.rb
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add Formula/jfvm.rb
-          git commit -m "Update jfvm formula"
+          git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
           git push origin main
