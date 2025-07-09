@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/jfrog/jfrog-cli-vm/cmd"
+	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
 	"github.com/urfave/cli/v2"
 )
 
@@ -32,6 +33,12 @@ func main() {
 				fmt.Printf("  Git Commit: %s\n", GitCommit)
 				os.Exit(0)
 			}
+
+			// Initialize jfvm directories
+			if err := utils.InitializeJfvmDirectories(); err != nil {
+				return fmt.Errorf("failed to initialize jfvm directories: %w", err)
+			}
+
 			return nil
 		},
 		Commands: []*cli.Command{

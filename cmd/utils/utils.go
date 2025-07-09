@@ -29,6 +29,24 @@ var (
 	JfvmShim     = filepath.Join(JfvmRoot, ShimDir)
 )
 
+// InitializeJfvmDirectories creates the necessary jfvm directories if they don't exist
+func InitializeJfvmDirectories() error {
+	directories := []string{
+		JfvmRoot,
+		JfvmVersions,
+		JfvmAliases,
+		JfvmShim,
+	}
+
+	for _, dir := range directories {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return fmt.Errorf("failed to create directory %s: %w", dir, err)
+		}
+	}
+
+	return nil
+}
+
 func GetVersionFromProjectFile() (string, error) {
 	fmt.Println("Attempting to read .jfrog-version file...")
 	data, err := os.ReadFile(ProjectFile)
