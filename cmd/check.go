@@ -178,6 +178,15 @@ func runHealthCheck(verbose, fix, performance, security bool) error {
 	if fix && report.Summary["fail"] > 0 {
 		fmt.Println("\n🔧 Attempting to fix issues...")
 		attemptFixes(report)
+
+		// After fixing, provide clear instructions about the current session
+		fmt.Println("\n📝 Important Note:")
+		fmt.Println("   The fixes have been applied to your shell profile files.")
+		fmt.Println("   However, this current terminal session will not see the changes.")
+		fmt.Println("   To apply the fixes in this session, run:")
+		fmt.Printf("   source %s\n", utils.GetShellProfile(utils.GetCurrentShell()))
+		fmt.Println("   Or simply restart your terminal.")
+		fmt.Println()
 	}
 
 	return nil
@@ -363,6 +372,12 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 	}
 	report.Checks = append(report.Checks, status)
 	report.Summary[status.Status]++
+
+	if verbose {
+		fmt.Println("  ℹ️  Note: This check reflects the current terminal session's PATH.")
+		fmt.Println("     If you recently ran 'jfvm use' or 'jfvm health-check --fix',")
+		fmt.Println("     you may need to 'source ~/.zshrc' (or ~/.bashrc) to see changes.")
+	}
 }
 
 func checkActiveVersion(report *HealthReport, verbose bool) {
@@ -589,6 +604,7 @@ func printHealthResults(checks []HealthStatus, verbose bool) {
 func attemptFixes(report *HealthReport) {
 	fmt.Println("🔧 Attempting to fix issues...")
 
+	fixesApplied := false
 	for _, check := range report.Checks {
 		if check.Status == "fail" && check.Fixable {
 			fmt.Printf("  Fixing %s...\n", check.Component)
@@ -597,26 +613,47 @@ func attemptFixes(report *HealthReport) {
 			case "jfvm Root Directory":
 				if err := os.MkdirAll(utils.JfvmRoot, 0755); err == nil {
 					fmt.Printf("    ✅ Created jfvm root directory\n")
+					fixesApplied = true
+				} else {
+					fmt.Printf("    ❌ Failed to create jfvm root directory: %v\n", err)
 				}
 			case "Shim Directory":
 				if err := os.MkdirAll(utils.JfvmShim, 0755); err == nil {
 					fmt.Printf("    ✅ Created shim directory\n")
+					fixesApplied = true
+				} else {
+					fmt.Printf("    ❌ Failed to create shim directory: %v\n", err)
 				}
 			case "Shim Binary":
 				if err := utils.SetupShim(); err == nil {
 					fmt.Printf("    ✅ Created shim binary\n")
+					fixesApplied = true
+				} else {
+					fmt.Printf("    ❌ Failed to create shim binary: %v\n", err)
 				}
 			case "Shim Permissions":
 				shimPath := filepath.Join(utils.JfvmShim, utils.BinaryName)
 				if err := os.Chmod(shimPath, 0755); err == nil {
 					fmt.Printf("    ✅ Fixed shim permissions\n")
+					fixesApplied = true
+				} else {
+					fmt.Printf("    ❌ Failed to fix shim permissions: %v\n", err)
 				}
 			case "PATH Priority", "Active jf Binary":
 				if err := utils.UpdatePATH(); err == nil {
 					fmt.Printf("    ✅ Updated PATH configuration\n")
+					fixesApplied = true
+				} else {
+					fmt.Printf("    ❌ Failed to update PATH configuration: %v\n", err)
 				}
 			}
 		}
+	}
+
+	if fixesApplied {
+		fmt.Println("\n✅ Fixes applied successfully!")
+	} else {
+		fmt.Println("\n⚠️  No fixes were applied (no fixable issues found)")
 	}
 }
 
