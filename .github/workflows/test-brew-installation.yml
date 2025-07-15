@@ -110,13 +110,6 @@ jobs:
           # Use the version
           jfvm use 2.74.0 || echo "jfvm use failed"
           
-          # Show profile contents if they exist
-          if [ -f ~/.bash_profile ]; then
-            echo "=== Contents of .bash_profile ==="
-            cat ~/.bash_profile || echo "Could not read .bash_profile"
-            echo "=== End of .bash_profile ==="
-          fi
-          
           # Verify which jf is being used
           which jf || echo "jf not found in PATH"
           
@@ -204,13 +197,6 @@ jobs:
           
           # Test using latest version
           jfvm use latest || echo "jfvm use latest failed"
-          
-          # Show profile contents if they exist
-          if [ -f ~/.bash_profile ]; then
-            echo "=== Contents of .bash_profile ==="
-            cat ~/.bash_profile || echo "Could not read .bash_profile"
-            echo "=== End of .bash_profile ==="
-          fi
           
           # Verify latest version is active
           jf --version || echo "jf execution failed"

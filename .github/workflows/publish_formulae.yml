@@ -28,37 +28,34 @@ jobs:
           repository: jfrog/homebrew-jfrog-cli-vm
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
-      - name: Checkout source repository
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ github.repository }}
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-
-      - name: Generate Homebrew formula
+      - name: Get tag and download binaries
+        id: get_tag
         run: |
-          echo "=== Generating Homebrew formula ==="
+          echo "=== Getting tag and downloading binaries ==="
           
           # Get the tag from the triggering workflow
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # For workflow_run, get the latest tag from the repository
-            TAG=$(git describe --tags --abbrev=0)
-            echo "Latest tag from repository: $TAG"
+            # For workflow_run, get the latest tag from GitHub API
+            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
+            echo "Latest tag from GitHub API: $TAG"
           else
             # For manual dispatch, use the input tag
             TAG="${{ github.event.inputs.tag }}"
             echo "Manual trigger tag: $TAG"
           fi
           
-          if [ -z "$TAG" ]; then
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
             echo "Error: No tag found"
             exit 1
           fi
           
           echo "Using tag: $TAG"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
           
           # Extract version without 'v' prefix
           VERSION=${TAG#v}
           echo "Version: $VERSION"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           
           # Download binaries and calculate SHA256
           echo "Downloading binaries and calculating SHA256..."
@@ -90,8 +87,6 @@ jobs:
           SHA256_DARWIN_AMD64=$(grep -A1 "SHA256_darwin_amd64" /tmp/sha256_values | tail -1)
           SHA256_LINUX_ARM64=$(grep -A1 "SHA256_linux_arm64" /tmp/sha256_values | tail -1)
           SHA256_LINUX_AMD64=$(grep -A1 "SHA256_linux_amd64" /tmp/sha256_values | tail -1)
-          
-
           
           # Generate the formula with real SHA256 values
           echo "Generating jfvm.rb formula..."
@@ -147,7 +142,7 @@ jobs:
           echo "Adding file to git..."
           git add Formula/jfvm.rb     
           echo "Committing changes..."
-          git commit -m "Update jfvm formula for ${TAG}"
+          git commit -m "Update jfvm formula for ${{ steps.get_tag.outputs.tag }}"
           
           echo "Setting remote URL..."
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
