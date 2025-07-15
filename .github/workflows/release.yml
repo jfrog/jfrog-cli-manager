@@ -64,40 +64,42 @@ jobs:
           GOOS=linux GOARCH=arm64 go build -o jfvm .
           tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz jfvm
           
-      - name: Create or Update Release
-        run: |
-          # Check if release already exists
-          if gh release view ${{ steps.tag.outputs.tag }} >/dev/null 2>&1; then
-            echo "Release ${{ steps.tag.outputs.tag }} already exists, uploading files..."
-            gh release upload ${{ steps.tag.outputs.tag }} \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz \
-              --clobber
-          else
-            echo "Creating new release ${{ steps.tag.outputs.tag }}..."
-            gh release create ${{ steps.tag.outputs.tag }} \
-              --title "jfvm ${{ steps.tag.outputs.tag }}" \
-              --notes "## What's New
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1.1.4
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          release_name: jfvm ${{ steps.tag.outputs.tag }}
+          body: |
+            ## What's New
             
-          This release includes:
-          - Multi-platform support (macOS ARM64/AMD64, Linux ARM64/AMD64)
-          - JFrog CLI version management
-          - Homebrew integration
-          
-          ## Downloads
-          
-          Platform-specific binaries are available for:
-          - macOS (Intel and Apple Silicon)
-          - Linux (Intel and ARM)" \
-              --draft=false \
-              --prerelease=false \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz \
-              dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
-          fi
+            This release includes:
+            - Multi-platform support (macOS ARM64/AMD64, Linux ARM64/AMD64)
+            - JFrog CLI version management
+            - Homebrew integration
+            
+            ## Downloads
+            
+            Platform-specific binaries are available for:
+            - macOS (Intel and Apple Silicon)
+            - Linux (Intel and ARM)
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-${{ matrix.platform }}.tar.gz
+          asset_name: jfvm-${{ steps.tag.outputs.tag }}-${{ matrix.platform }}.tar.gz
+          asset_content_type: application/gzip
+        strategy:
+          matrix:
+            platform: [darwin-amd64, darwin-arm64, linux-amd64, linux-arm64]
 
 
 
