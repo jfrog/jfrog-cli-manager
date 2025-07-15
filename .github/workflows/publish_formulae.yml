@@ -14,31 +14,134 @@ permissions:
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: jfrog/homebrew-jfrog-cli-vm
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
-      - name: Download generated formula
-        uses: dawidd6/action-download-artifact@v6
+      - name: Checkout source repository
+        uses: actions/checkout@v4
         with:
-          workflow: release.yml
-          name: jfvm.rb
-          workflow_conclusion: success
-          if_no_artifact_found: fail
+          repository: jfrog/jfrog-cli-vm
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+
+      - name: Generate Homebrew formula
+        run: |
+          echo "=== Generating Homebrew formula ==="
+          echo "RELEASE_TAG: ${{ env.RELEASE_TAG }}"
+          
+          # Get the latest release info
+          TAG="${{ env.RELEASE_TAG }}"
+          if [ -z "$TAG" ]; then
+            echo "No tag provided, getting latest tag..."
+            TAG=$(git describe --tags --abbrev=0)
+          fi
+          
+          echo "Using tag: $TAG"
+          
+          # Extract version without 'v' prefix
+          VERSION=${TAG#v}
+          echo "Version: $VERSION"
+          
+          # Download binaries and calculate SHA256
+          echo "Downloading binaries and calculating SHA256..."
+          
+          # macOS ARM64
+          echo "Downloading macOS ARM64 binary..."
+          curl -L -o jfvm-darwin-arm64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-arm64"
+          SHA256_DARWIN_ARM64=$(sha256sum jfvm-darwin-arm64 | cut -d' ' -f1)
+          echo "macOS ARM64 SHA256: $SHA256_DARWIN_ARM64"
+          
+          # macOS AMD64
+          echo "Downloading macOS AMD64 binary..."
+          curl -L -o jfvm-darwin-amd64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-amd64"
+          SHA256_DARWIN_AMD64=$(sha256sum jfvm-darwin-amd64 | cut -d' ' -f1)
+          echo "macOS AMD64 SHA256: $SHA256_DARWIN_AMD64"
+          
+          # Linux ARM64
+          echo "Downloading Linux ARM64 binary..."
+          curl -L -o jfvm-linux-arm64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-arm64"
+          SHA256_LINUX_ARM64=$(sha256sum jfvm-linux-arm64 | cut -d' ' -f1)
+          echo "Linux ARM64 SHA256: $SHA256_LINUX_ARM64"
+          
+          # Linux AMD64
+          echo "Downloading Linux AMD64 binary..."
+          curl -L -o jfvm-linux-amd64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-amd64"
+          SHA256_LINUX_AMD64=$(sha256sum jfvm-linux-amd64 | cut -d' ' -f1)
+          echo "Linux AMD64 SHA256: $SHA256_LINUX_AMD64"
+          
+          # Test binaries work
+          echo "Testing binaries..."
+          chmod +x jfvm-*
+          ./jfvm-darwin-amd64 --version
+          ./jfvm-linux-amd64 --version
+          
+          # Generate the formula with real SHA256 values
+          echo "Generating jfvm.rb formula..."
+          cat > jfvm.rb << EOF
+          class Jfvm < Formula
+            desc "JFrog CLI Version Manager"
+            homepage "https://github.com/jfrog/jfrog-cli-vm"
+            version "${VERSION}"
+            
+            if OS.mac?
+              if Hardware::CPU.arm?
+                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-arm64"
+                sha256 "${SHA256_DARWIN_ARM64}"
+              else
+                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-amd64"
+                sha256 "${SHA256_DARWIN_AMD64}"
+              end
+            elsif OS.linux?
+              if Hardware::CPU.arm?
+                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-arm64"
+                sha256 "${SHA256_LINUX_ARM64}"
+              else
+                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-amd64"
+                sha256 "${SHA256_LINUX_AMD64}"
+              end
+            end
+            
+            def install
+              bin.install Dir["jfvm-*"]
+            end
+            
+            test do
+              system "#{bin}/jfvm", "--version"
+            end
+          end
+          EOF
+          
+          echo "Formula generated successfully:"
+          cat jfvm.rb
 
       - name: Move and commit formula
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
+          echo "=== Moving and committing formula ==="
           mkdir -p Formula
           mv jfvm.rb Formula/jfvm.rb
+          echo "Formula moved to Formula/jfvm.rb"
+          
           git config user.name github-actions
           git config user.email github-actions@github.com
+          
+          echo "Adding file to git..."
           git add Formula/jfvm.rb
-          git commit -m "Update jfvm formula"
+          
+          echo "Committing changes..."
+          git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
+          
+          echo "Setting remote URL..."
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
+          
+          echo "Pushing to main branch..."
           git push origin main
+          
+          echo "=== Formula published successfully! ==="

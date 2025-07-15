@@ -269,6 +269,12 @@ if %ERRORLEVEL% == 0 (
 `
 }
 
+// Unique block markers for jfvm PATH and function
+const (
+	JfvmBlockStart = "# >>> jfvm PATH and function (managed by jfvm)"
+	JfvmBlockEnd   = "# <<< jfvm PATH and function (managed by jfvm)"
+)
+
 // UpdatePATH updates the user's shell profile to include jfvm shim in PATH with highest priority
 func UpdatePATH() error {
 	// First, clean up the old bin directory if it exists
@@ -280,86 +286,81 @@ func UpdatePATH() error {
 		}
 	}
 
-	// Get the current shell and clean up relevant profile files
+	// Get the current shell and check the primary profile file
 	shell := GetCurrentShell()
-	var profileFiles []string
-
-	switch shell {
-	case "zsh":
-		profileFiles = []string{
-			filepath.Join(HomeDir, ".zshrc"),
-			filepath.Join(HomeDir, ".profile"), // zsh also loads .profile
-		}
-	case "bash":
-		profileFiles = []string{
-			filepath.Join(HomeDir, ".bashrc"),
-			filepath.Join(HomeDir, ".bash_profile"),
-			filepath.Join(HomeDir, ".profile"),
-		}
-	default:
-		// For other shells, just clean the primary profile
-		primaryProfile := GetShellProfile(shell)
-		if primaryProfile != "" {
-			profileFiles = []string{primaryProfile}
-		}
-	}
-
-	for _, profileFile := range profileFiles {
-		if err := cleanupProfileFile(profileFile); err != nil {
-			fmt.Printf("Warning: Failed to cleanup %s: %v\n", profileFile, err)
-		}
-	}
-
-	// Get the primary shell profile for adding the new configuration
 	primaryProfileFile := GetShellProfile(shell)
 
 	if primaryProfileFile == "" {
 		return fmt.Errorf("unsupported shell: %s", shell)
 	}
 
-	// Read current primary profile
+	// Read current primary profile (create if missing)
 	content, err := os.ReadFile(primaryProfileFile)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("failed to read profile file: %w", err)
 	}
-
 	profileContent := string(content)
 
-	// Check if jfvm shim PATH is already added with correct priority
-	if strings.Contains(profileContent, JfvmShim) {
-		// Verify it's at the beginning of PATH (highest priority)
-		if strings.Contains(profileContent, fmt.Sprintf("export PATH=\"%s:$PATH\"", JfvmShim)) {
-			fmt.Printf("jfvm PATH already configured with highest priority in %s\n", primaryProfileFile)
-			return nil
-		} else {
-			// Remove old incorrect PATH entry
-			fmt.Printf("Updating jfvm PATH configuration to ensure highest priority...\n")
-		}
-	}
-
-	// Add jfvm shim PATH to profile with highest priority (prepend to PATH)
-	// Also add shell function for better priority handling (similar to nvm)
-	pathLine := fmt.Sprintf(`
-
-# jfvm PATH configuration - ensures jfvm-managed jf takes highest priority
+	// Check if the correct jfvm block already exists
+	expectedBlock := fmt.Sprintf(`# >>> jfvm PATH and function (managed by jfvm)
 export PATH="%s:$PATH"
 
 # jfvm shell function for enhanced priority (similar to nvm approach)
 jf() {
-    # Check if jfvm shim exists and is executable
     if [ -x "%s/jf" ]; then
-        # Execute jfvm-managed jf with highest priority
         "%s/jf" "$@"
     else
-        # Fallback to system jf if jfvm shim not available
         command jf "$@"
     fi
 }
+# <<< jfvm PATH and function (managed by jfvm)`, JfvmShim, JfvmShim, JfvmShim)
+
+	// Check if the expected block is already present
+	if strings.Contains(profileContent, expectedBlock) {
+		fmt.Printf("✅ jfvm PATH already configured correctly in %s\n", primaryProfileFile)
+		return nil
+	}
+
+	// Check if there are any jfvm-related entries that need cleanup
+	if strings.Contains(profileContent, "jfvm") || strings.Contains(profileContent, "jf() {") {
+		fmt.Printf("🧹 Cleaning up old jfvm entries from %s\n", primaryProfileFile)
+		// Clean up the primary profile file
+		if err := cleanupProfileFile(primaryProfileFile); err != nil {
+			fmt.Printf("Warning: Failed to cleanup %s: %v\n", primaryProfileFile, err)
+		}
+
+		// Re-read the cleaned content
+		content, err = os.ReadFile(primaryProfileFile)
+		if err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to read profile file after cleanup: %w", err)
+		}
+		profileContent = string(content)
+	}
+
+	// Remove any existing jfvm block (even if partial/corrupted)
+	profileContent = RemoveJfvmBlock(profileContent)
+
+	// Add jfvm shim PATH and function block
+	block := fmt.Sprintf(`
+
+# >>> jfvm PATH and function (managed by jfvm)
+export PATH="%s:$PATH"
+
+# jfvm shell function for enhanced priority (similar to nvm approach)
+jf() {
+    if [ -x "%s/jf" ]; then
+        "%s/jf" "$@"
+    else
+        command jf "$@"
+    fi
+}
+# <<< jfvm PATH and function (managed by jfvm)
 
 `, JfvmShim, JfvmShim, JfvmShim)
 
-	// Append to profile
-	if err := os.WriteFile(primaryProfileFile, []byte(profileContent+pathLine), 0644); err != nil {
+	profileContent = strings.TrimRight(profileContent, "\n") + block
+
+	if err := os.WriteFile(primaryProfileFile, []byte(profileContent), 0644); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 
@@ -370,7 +371,28 @@ jf() {
 	return nil
 }
 
-// cleanupProfileFile removes old jfvm PATH entries from a profile file
+// RemoveJfvmBlock removes any existing jfvm PATH/function block from the profile content
+func RemoveJfvmBlock(content string) string {
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	inBlock := false
+	for _, line := range lines {
+		if strings.Contains(line, JfvmBlockStart) {
+			inBlock = true
+			continue
+		}
+		if inBlock && strings.Contains(line, JfvmBlockEnd) {
+			inBlock = false
+			continue
+		}
+		if !inBlock {
+			newLines = append(newLines, line)
+		}
+	}
+	return strings.Join(newLines, "\n")
+}
+
+// cleanupProfileFile removes old jfvm PATH/function blocks from a profile file using block markers
 func cleanupProfileFile(profileFile string) error {
 	// Check if file exists
 	if _, err := os.Stat(profileFile); os.IsNotExist(err) {
@@ -384,29 +406,11 @@ func cleanupProfileFile(profileFile string) error {
 	}
 
 	profileContent := string(content)
-	originalContent := profileContent
-
-	// Remove any old jfvm PATH entries (both bin and shim)
-	lines := strings.Split(profileContent, "\n")
-	var newLines []string
-
-	for _, line := range lines {
-		// Skip lines that contain old jfvm PATH entries
-		if strings.Contains(line, "$HOME/.jfvm/bin") ||
-			strings.Contains(line, "~/.jfvm/bin") ||
-			strings.Contains(line, JfvmShim) ||
-			strings.Contains(line, "jfvm PATH") ||
-			strings.Contains(line, "jf() {") {
-			continue
-		}
-		newLines = append(newLines, line)
-	}
-
-	profileContent = strings.Join(newLines, "\n")
+	cleaned := RemoveJfvmBlock(profileContent)
 
 	// Only write if content changed
-	if profileContent != originalContent {
-		if err := os.WriteFile(profileFile, []byte(profileContent), 0644); err != nil {
+	if cleaned != profileContent {
+		if err := os.WriteFile(profileFile, []byte(cleaned), 0644); err != nil {
 			return fmt.Errorf("failed to write profile file: %w", err)
 		}
 		fmt.Printf("🧹 Cleaned up old jfvm entries from %s\n", profileFile)
