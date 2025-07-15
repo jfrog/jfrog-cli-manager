@@ -19,181 +19,33 @@ permissions:
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           repository: jfrog/homebrew-jfrog-cli-vm
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
-      - name: Get tag and download tar.gz
-        id: get_tag
-        run: |
-          echo "=== Getting tag and downloading tar.gz ==="
-          
-          # Get the tag from the triggering workflow
-          if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # For workflow_run, get the highest version tag from GitHub API with retry
-            for i in {1..3}; do
-              TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases" | jq -r '.[0].tag_name')
-              if [ "$TAG" != "null" ] && [ -n "$TAG" ]; then
-                echo "Highest version tag from GitHub API: $TAG"
-                break
-              else
-                echo "Attempt $i failed, retrying..."
-                sleep 2
-              fi
-            done
-          else
-            # For manual dispatch, use the input tag
-            TAG="${{ github.event.inputs.tag }}"
-            echo "Manual trigger tag: $TAG"
-          fi
-          
-          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then
-            echo "Error: No tag found"
-            exit 1
-          fi
-          
-          echo "Using tag: $TAG"
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
-          
-          # Extract version without 'v' prefix
-          VERSION=${TAG#v}
-          echo "Version: $VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          
-          # Download platform-specific tar.gz and calculate SHA256
-          echo "Downloading platform-specific tar.gz and calculating SHA256..."
-          
-          # Determine platform-specific URL
-          if [[ "$(uname)" == "Darwin" ]]; then
-            if [[ "$(uname -m)" == "arm64" ]]; then
-              PLATFORM="darwin-arm64"
-            else
-              PLATFORM="darwin-amd64"
-            fi
-          else
-            if [[ "$(uname -m)" == "aarch64" ]]; then
-              PLATFORM="linux-arm64"
-            else
-              PLATFORM="linux-amd64"
-            fi
-          fi
-          
-          TAR_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-${PLATFORM}.tar.gz"
-          echo "Downloading from: $TAR_URL"
-          
-          if curl -L -f -o "jfvm-${TAG}-${PLATFORM}.tar.gz" "$TAR_URL"; then
-            SHA256=$(sha256sum "jfvm-${TAG}-${PLATFORM}.tar.gz" | cut -d' ' -f1)
-            echo "Tar.gz SHA256: $SHA256"
-            echo "sha256=$SHA256" >> $GITHUB_OUTPUT
-          else
-            echo "Error: Failed to download tar.gz"
-            exit 1
-          fi
-          
-          # Download all platform tar.gz files to calculate SHA256
-          echo "Downloading all platform tar.gz files to calculate SHA256..."
-          
-          # Function to download and calculate SHA256
-          download_and_calc_sha() {
-            local platform=$1
-            local url="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-${platform}.tar.gz"
-            echo "Downloading ${platform}..."
-            
-            if curl -L -f -o "jfvm-${TAG}-${platform}.tar.gz" "$url"; then
-              local sha256=$(sha256sum "jfvm-${TAG}-${platform}.tar.gz" | cut -d' ' -f1)
-              echo "${platform} SHA256: $sha256"
-              echo "SHA256_${platform//-/_}=$sha256" >> /tmp/sha256_values
-            else
-              echo "Error: Failed to download ${platform}"
-              exit 1
-            fi
-          }
-          
-          # Download all platforms
-          download_and_calc_sha "darwin-amd64"
-          download_and_calc_sha "darwin-arm64"
-          download_and_calc_sha "linux-amd64"
-          download_and_calc_sha "linux-arm64"
-          
-          # Read SHA256 values
-          SHA256_DARWIN_AMD64=$(grep "SHA256_darwin_amd64" /tmp/sha256_values | cut -d'=' -f2)
-          SHA256_DARWIN_ARM64=$(grep "SHA256_darwin_arm64" /tmp/sha256_values | cut -d'=' -f2)
-          SHA256_LINUX_AMD64=$(grep "SHA256_linux_amd64" /tmp/sha256_values | cut -d'=' -f2)
-          SHA256_LINUX_ARM64=$(grep "SHA256_linux_arm64" /tmp/sha256_values | cut -d'=' -f2)
-          
-          # Generate the formula using platform-specific tar.gz
-          echo "Generating jfvm.rb formula..."
-          cat > jfvm.rb << EOF
-          class Jfvm < Formula
-            desc "JFrog CLI Version Manager"
-            homepage "https://github.com/${{ github.repository }}"
-            version "${VERSION}"
-            
-            if OS.mac?
-              if Hardware::CPU.arm?
-                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-arm64.tar.gz"
-                sha256 "${SHA256_DARWIN_ARM64}"
-              else
-                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-amd64.tar.gz"
-                sha256 "${SHA256_DARWIN_AMD64}"
-              end
-            elsif OS.linux?
-              if Hardware::CPU.arm?
-                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-arm64.tar.gz"
-                sha256 "${SHA256_LINUX_ARM64}"
-              else
-                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-amd64.tar.gz"
-                sha256 "${SHA256_LINUX_AMD64}"
-              end
-            end
-            
-            def install
-              bin.install "jfvm" => "jfvm"
-            end
-            
-            test do
-              system "#{bin}/jfvm", "--version"
-            end
-          end
-          EOF
-          
-          echo "Formula generated successfully:"
-          cat jfvm.rb
+      - name: Download generated formula
+        uses: dawidd6/action-download-artifact@v6
+        with:
+          workflow: release.yml
+          name: jfvm.rb
+          workflow_conclusion: success
+          if_no_artifact_found: fail
 
       - name: Move and commit formula
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
-          echo "=== Moving and committing formula ==="
-          
-          # Check if HOMEBREW_TAP_TOKEN is available
-          if [ -z "$GH_TOKEN" ]; then
-            echo "Error: HOMEBREW_TAP_TOKEN secret is not set"
-            echo "Please add HOMEBREW_TAP_TOKEN secret to this repository"
-            exit 1
-          fi
-          
           mkdir -p Formula
           mv jfvm.rb Formula/jfvm.rb
-          echo "Formula moved to Formula/jfvm.rb"
-          
           git config user.name github-actions
           git config user.email github-actions@github.com
-          
-          echo "Adding file to git..."
           git add Formula/jfvm.rb
-          echo "Committing changes..."
-          git commit -m "Update jfvm formula for ${{ steps.get_tag.outputs.tag }}"
-          
-          echo "Setting remote URL..."
+          git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
-          
-          echo "Pushing to main branch..."
           git push origin main
-          
-          echo "=== Formula published successfully! ==="
