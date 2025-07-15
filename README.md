@@ -196,6 +196,10 @@ jfvm history --format json
 
 # Clear history (cannot be undone)
 jfvm history --clear
+
+# Reexecute a specific history entry by ID
+jfvm history '!2'  # Reexecute history entry with ID 2
+jfvm history '!5'  # Reexecute history entry with ID 5
 ```
 
 **Features:**
@@ -204,6 +208,7 @@ jfvm history --clear
 - Most used versions and commands
 - Usage trends and timeline analysis
 - Configurable history limits
+- **History replay**: Reexecute any previous command using `!{id}` syntax
 
 ---
 
@@ -294,7 +299,7 @@ If `jf` is still using the system version instead of jfvm-managed version:
    ```bash
    type jf
    # Should show the jfvm shell function, not a system binary
-   ```
+```
 
 ---
 

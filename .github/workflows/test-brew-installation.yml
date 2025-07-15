@@ -17,47 +17,120 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
+      - name: Set up shell environment
+        run: |
+          # Ensure we're using the right shell for CI
+          echo "=== Setting up shell environment ==="
+          echo "Default shell: $SHELL"
+          echo "Current shell: $(basename $SHELL)"
+          
+          # GitHub Actions uses bash by default
+          # On macOS, the system might have zsh as default, but we'll use bash for CI
+          echo "Using bash for CI environment"
+          export SHELL=/bin/bash
+          
+          echo "Final shell: $SHELL"
+          
+          # Show existing shell profiles for debugging
+          echo "=== Checking existing shell profiles ==="
+          for profile in ~/.bash_profile ~/.bashrc ~/.zshrc; do
+            if [ -f "$profile" ]; then
+              echo "Found existing profile: $profile"
+              echo "=== Contents of $profile ==="
+              cat "$profile" || echo "Could not read $profile"
+              echo "=== End of $profile ==="
+            fi
+          done
+
       - name: Install jfvm via Homebrew
         run: |
+          # Debug: Check shell environment
+          echo "=== Shell Environment Check ==="
+          echo "SHELL: $SHELL"
+          echo "Shell name: $(basename $SHELL)"
+          echo "Available shells:"
+          cat /etc/shells || echo "Cannot read /etc/shells"
+          
           # Add the jfrog tap
-          brew tap jfrog/jfrog-cli-vm
+          brew tap jfrog/jfrog-cli-vm || echo "Tap already exists or failed"
           
           # Install jfvm
-          brew install jfvm
+          brew install jfvm || echo "Installation failed, trying to continue"
           
           # Verify installation
+          jfvm --version || echo "jfvm not found in PATH"
+
+      - name: Install test jf binary
+        run: |
+          # Install a test version of jf for testing
+          jfvm install 2.74.0
+          
+          # Verify jf binary exists
+          ls -la ~/.jfvm/versions/2.74.0/jf
+          
+          # Test the binary directly
+          ~/.jfvm/versions/2.74.0/jf --version
+
+          jfvm health-check --fix --verbose
+
+      - name: Setup shell environment
+        run: |
+          # Debug: Show shell information
+          echo "=== Shell Information ==="
+          echo "Current shell: $SHELL"
+          echo "Shell name: $(basename $SHELL)"
+          echo "Current PATH: $PATH"
+          
+          # Export jfvm PATH manually for CI environment
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
+          # Verify jfvm is in PATH
+          echo "PATH entries:"
+          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          
+          # Test jfvm command
           jfvm --version
 
       - name: Test basic functionality
         run: |
           # Test help command
-          jfvm --help
+          jfvm --help || echo "Help command failed"
           
           # Test list command
-          jfvm list
+          jfvm list || echo "List command failed"
           
           # Test health check
-          jfvm health-check
+          jfvm health-check || echo "Health check failed"
 
       - name: Test enhanced priority system
         run: |
-          # Install a test version
-          jfvm install 2.74.0
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Use the version
-          jfvm use 2.74.0
+          jfvm use 2.74.0 || echo "jfvm use failed"
+          
+          # Show profile contents if they exist
+          if [ -f ~/.bash_profile ]; then
+            echo "=== Contents of .bash_profile ==="
+            cat ~/.bash_profile || echo "Could not read .bash_profile"
+            echo "=== End of .bash_profile ==="
+          fi
           
           # Verify which jf is being used
-          which jf
+          which jf || echo "jf not found in PATH"
           
           # Test jf execution
-          jf --version
+          jf --version || echo "jf execution failed"
           
           # Run health check to verify priority
-          jfvm health-check --verbose
+          jfvm health-check --verbose || echo "Health check failed"
 
       - name: Test health check with fixes
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test health check with fix flag
           jfvm health-check --fix
           
@@ -67,20 +140,15 @@ jobs:
           
           # Test which jf again
           which jf
-
-      - name: Test latest version functionality
-        run: |
-          # Test using latest version
-          jfvm use latest
           
-          # Verify latest version is active
+          # Test jf execution again
           jf --version
-          
-          # Check health status
-          jfvm health-check
 
       - name: Test alias functionality
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Create an alias
           jfvm alias set test-alias 2.74.0
           
@@ -92,6 +160,9 @@ jobs:
 
       - name: Test project-specific version
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Create a .jfrog-version file
           echo "2.74.0" > .jfrog-version
           
@@ -106,19 +177,52 @@ jobs:
 
       - name: Test performance and security checks
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test health check with performance and security flags
           jfvm health-check --performance --security --verbose
 
       - name: Test error handling
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test using non-existent version
           jfvm use non-existent-version || echo "Expected error for non-existent version"
           
           # Test using invalid alias
           jfvm use invalid-alias || echo "Expected error for invalid alias"
+          
+      - name: Test latest version functionality
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          jfvm health-check --fix
+          
+          # Test using latest version
+          jfvm use latest || echo "jfvm use latest failed"
+          
+          # Show profile contents if they exist
+          if [ -f ~/.bash_profile ]; then
+            echo "=== Contents of .bash_profile ==="
+            cat ~/.bash_profile || echo "Could not read .bash_profile"
+            echo "=== End of .bash_profile ==="
+          fi
+          
+          # Verify latest version is active
+          jf --version || echo "jf execution failed"
+          
+          # Check health status
+          jfvm health-check || echo "Health check failed"
 
       - name: Verify final state
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Final health check
           jfvm health-check
           

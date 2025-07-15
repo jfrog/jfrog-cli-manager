@@ -117,6 +117,13 @@ func runHealthCheck(verbose, fix, performance, security bool) error {
 	printHealthResults(report.Checks[startCount:], verbose)
 	fmt.Println()
 
+	// 4.5. Shell Profile Corruption Check
+	fmt.Println("4.5. 🧹 Shell Profile Integrity")
+	startCount = len(report.Checks)
+	checkShellProfileIntegrity(report, verbose, fix)
+	printHealthResults(report.Checks[startCount:], verbose)
+	fmt.Println()
+
 	// 5. Active Version Check
 	fmt.Println("5. 📋 Active Version")
 	startCount = len(report.Checks)
@@ -378,6 +385,232 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 		fmt.Println("     If you recently ran 'jfvm use' or 'jfvm health-check --fix',")
 		fmt.Println("     you may need to 'source ~/.zshrc' (or ~/.bashrc) to see changes.")
 	}
+}
+
+func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
+	shell := utils.GetCurrentShell()
+	profileFile := utils.GetShellProfile(shell)
+
+	if profileFile == "" {
+		status := HealthStatus{
+			Component: "Shell Profile",
+			Status:    "warn",
+			Message:   fmt.Sprintf("Unsupported shell: %s", shell),
+			Details:   "Cannot check profile integrity for this shell type",
+		}
+		report.Checks = append(report.Checks, status)
+		report.Summary[status.Status]++
+		return
+	}
+
+	// Check if profile file exists
+	status := HealthStatus{Component: "Profile File Existence"}
+	if _, err := os.Stat(profileFile); os.IsNotExist(err) {
+		status.Status = "pass"
+		status.Message = fmt.Sprintf("Profile file %s does not exist (clean state)", filepath.Base(profileFile))
+	} else {
+		status.Status = "pass"
+		status.Message = fmt.Sprintf("Profile file %s exists", filepath.Base(profileFile))
+	}
+	report.Checks = append(report.Checks, status)
+	report.Summary[status.Status]++
+
+	// Read and analyze profile content
+	content, err := os.ReadFile(profileFile)
+	if err != nil {
+		status := HealthStatus{
+			Component: "Profile File Read",
+			Status:    "fail",
+			Message:   fmt.Sprintf("Cannot read profile file: %s", filepath.Base(profileFile)),
+			Details:   err.Error(),
+		}
+		report.Checks = append(report.Checks, status)
+		report.Summary[status.Status]++
+		return
+	}
+
+	profileContent := string(content)
+	lines := strings.Split(profileContent, "\n")
+
+	var issues []string
+	var totalIssues int
+	var corruptedLines []int
+
+	// More sophisticated corruption detection
+	// Check for multiple jfvm blocks (should only be one)
+	jfvmBlockCount := 0
+	inJfvmBlock := false
+	orphanedStatements := 0
+
+	for i, line := range lines {
+		// Count jfvm blocks
+		if strings.Contains(line, "# >>> jfvm") {
+			jfvmBlockCount++
+			inJfvmBlock = true
+		} else if strings.Contains(line, "# <<< jfvm") {
+			inJfvmBlock = false
+		}
+
+		// Check for orphaned jfvm-related statements outside blocks
+		if !inJfvmBlock {
+			if strings.Contains(line, "jf() {") ||
+				(strings.Contains(line, "export PATH") && strings.Contains(line, "jfvm")) ||
+				strings.Contains(line, "jfvm shell function") ||
+				strings.Contains(line, "Check if jfvm") ||
+				strings.Contains(line, "Execute jfvm") ||
+				strings.Contains(line, "Fallback to system") {
+				orphanedStatements++
+				corruptedLines = append(corruptedLines, i+1)
+			}
+		}
+	}
+
+	// Check for multiple jfvm blocks
+	if jfvmBlockCount > 1 {
+		issues = append(issues, fmt.Sprintf("Multiple jfvm blocks: found %d instances", jfvmBlockCount))
+		totalIssues += jfvmBlockCount - 1
+	}
+
+	// Check for orphaned statements
+	if orphanedStatements > 0 {
+		issues = append(issues, fmt.Sprintf("Orphaned jfvm statements: found %d instances", orphanedStatements))
+		totalIssues += orphanedStatements
+	}
+
+	// Check for multiple PATH entries (simple pattern matching)
+	pathEntries := 0
+	for _, line := range lines {
+		if strings.Contains(line, "export PATH") && strings.Contains(line, "jfvm") {
+			pathEntries++
+		}
+	}
+	if pathEntries > 1 {
+		issues = append(issues, fmt.Sprintf("Multiple jfvm PATH entries: found %d instances", pathEntries))
+		totalIssues += pathEntries - 1
+	}
+
+	// Check for multiple jf() functions (simple pattern matching)
+	jfFunctions := 0
+	for _, line := range lines {
+		if strings.Contains(line, "jf() {") {
+			jfFunctions++
+		}
+	}
+	if jfFunctions > 1 {
+		issues = append(issues, fmt.Sprintf("Multiple jf() function definitions: found %d instances", jfFunctions))
+		totalIssues += jfFunctions - 1
+	}
+
+	corruptionStatus := HealthStatus{Component: "Profile Corruption"}
+
+	// Debug output
+	if verbose {
+		fmt.Printf("🔍 Corruption detection results:\n")
+		fmt.Printf("   - Total issues found: %d\n", len(issues))
+		fmt.Printf("   - Issues: %v\n", issues)
+		fmt.Printf("   - jfvmBlockCount: %d\n", jfvmBlockCount)
+		fmt.Printf("   - orphanedStatements: %d\n", orphanedStatements)
+		fmt.Printf("   - pathEntries: %d\n", pathEntries)
+		fmt.Printf("   - jfFunctions: %d\n", jfFunctions)
+	}
+
+	if len(issues) > 0 {
+		corruptionStatus.Status = "fail"
+		corruptionStatus.Message = fmt.Sprintf("Found %d corruption issues in %s", totalIssues, filepath.Base(profileFile))
+		corruptionStatus.Details = strings.Join(issues, "; ")
+		corruptionStatus.Fixable = true
+
+		if verbose {
+			corruptionStatus.Details += fmt.Sprintf("\n\nProfile file: %s", profileFile)
+			corruptionStatus.Details += fmt.Sprintf("\nCorrupted lines: %v", corruptedLines)
+		}
+	} else {
+		corruptionStatus.Status = "pass"
+		corruptionStatus.Message = fmt.Sprintf("No corruption detected in %s", filepath.Base(profileFile))
+	}
+	report.Checks = append(report.Checks, corruptionStatus)
+	report.Summary[corruptionStatus.Status]++
+
+	// If fix is requested, clean up the profile (regardless of whether issues were detected)
+	if fix {
+		cleanupStatus := HealthStatus{Component: "Profile Cleanup"}
+
+		// Create backup first
+		backupFile := profileFile + ".jfvm.backup"
+		if err := os.WriteFile(backupFile, []byte(profileContent), 0644); err != nil {
+			cleanupStatus.Status = "fail"
+			cleanupStatus.Message = "Failed to create backup before cleanup"
+			cleanupStatus.Details = err.Error()
+		} else {
+			// Clean up using the new improved cleanup functions
+			if err := utils.CleanupProfileFile(profileFile); err != nil {
+				cleanupStatus.Status = "fail"
+				cleanupStatus.Message = "Failed to clean up profile file"
+				cleanupStatus.Details = err.Error()
+			} else {
+				cleanupStatus.Status = "pass"
+				cleanupStatus.Message = fmt.Sprintf("Successfully cleaned %s", filepath.Base(profileFile))
+				cleanupStatus.Details = fmt.Sprintf("Removed corruption issues. Backup saved to %s", filepath.Base(backupFile))
+			}
+			report.Checks = append(report.Checks, cleanupStatus)
+			report.Summary[cleanupStatus.Status]++
+			return
+		}
+	}
+}
+
+// cleanupOldJfvmCorruption removes the old corrupted jfvm patterns from profile content
+func cleanupOldJfvmCorruption(content string) string {
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	inJfvmBlock := false
+	blockDepth := 0
+
+	for _, line := range lines {
+		// Check if this line starts a jfvm block (old or new format)
+		if strings.Contains(line, "jfvm PATH") ||
+			strings.Contains(line, "jfvm shell function") ||
+			strings.Contains(line, "jf() {") ||
+			strings.Contains(line, "# >>> jfvm") ||
+			strings.Contains(line, "# <<< jfvm") {
+			inJfvmBlock = true
+			blockDepth = 0
+			continue
+		}
+
+		// If we're in a jfvm block, track depth and skip lines
+		if inJfvmBlock {
+			if strings.Contains(line, "{") {
+				blockDepth++
+			}
+			if strings.Contains(line, "}") {
+				blockDepth--
+				if blockDepth <= 0 {
+					inJfvmBlock = false
+					blockDepth = 0
+				}
+			}
+			continue
+		}
+
+		// Skip individual jfvm-related lines that are not part of a proper block
+		if strings.Contains(line, "export PATH") && strings.Contains(line, "jfvm") {
+			continue
+		}
+		if strings.Contains(line, "Check if jfvm") ||
+			strings.Contains(line, "Execute jfvm") ||
+			strings.Contains(line, "Fallback to system") ||
+			strings.Contains(line, "command jf") ||
+			strings.Contains(line, "fi") ||
+			strings.Contains(line, "else") {
+			continue
+		}
+
+		// Keep all other lines
+		newLines = append(newLines, line)
+	}
+
+	return strings.Join(newLines, "\n")
 }
 
 func checkActiveVersion(report *HealthReport, verbose bool) {
