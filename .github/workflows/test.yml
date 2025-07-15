@@ -192,6 +192,9 @@ jobs:
 
           # Test using latest version
           jfvm use latest
+
+          cat /Users/runner/.bash_profile
+          source ~/.bash_profile
           
           # Verify latest version is active
           jf --version
