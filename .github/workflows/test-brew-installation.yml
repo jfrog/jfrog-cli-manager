@@ -114,6 +114,15 @@ jobs:
           # Use the version
           jfvm use 2.74.0
           
+          # Source the updated profile to apply PATH changes
+          if [ -f ~/.bash_profile ]; then
+            echo "Sourcing updated .bash_profile..."
+            source ~/.bash_profile
+          elif [ -f ~/.bashrc ]; then
+            echo "Sourcing updated .bashrc..."
+            source ~/.bashrc
+          fi
+          
           # Verify which jf is being used
           which jf
           
@@ -151,6 +160,15 @@ jobs:
           # Test using latest version
           jfvm use latest
           
+          # Source the updated profile to apply PATH changes
+          if [ -f ~/.bash_profile ]; then
+            echo "Sourcing updated .bash_profile..."
+            source ~/.bash_profile
+          elif [ -f ~/.bashrc ]; then
+            echo "Sourcing updated .bashrc..."
+            source ~/.bashrc
+          fi
+          
           # Verify latest version is active
           jf --version
           
@@ -168,6 +186,15 @@ jobs:
           # Use the alias
           jfvm use test-alias
           
+          # Source the updated profile to apply PATH changes
+          if [ -f ~/.bash_profile ]; then
+            echo "Sourcing updated .bash_profile..."
+            source ~/.bash_profile
+          elif [ -f ~/.bashrc ]; then
+            echo "Sourcing updated .bashrc..."
+            source ~/.bashrc
+          fi
+          
           # Verify alias works
           jf --version
 
@@ -181,6 +208,15 @@ jobs:
           
           # Use without arguments (should read from .jfrog-version)
           jfvm use
+          
+          # Source the updated profile to apply PATH changes
+          if [ -f ~/.bash_profile ]; then
+            echo "Sourcing updated .bash_profile..."
+            source ~/.bash_profile
+          elif [ -f ~/.bashrc ]; then
+            echo "Sourcing updated .bashrc..."
+            source ~/.bashrc
+          fi
           
           # Verify correct version is active
           jf --version
