@@ -530,28 +530,20 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 			cleanupStatus.Message = "Failed to create backup before cleanup"
 			cleanupStatus.Details = err.Error()
 		} else {
-			// Clean up using the old pattern-based approach (not the new block markers)
-			cleaned := cleanupOldJfvmCorruption(profileContent)
-
-			if cleaned != profileContent {
-				if err := os.WriteFile(profileFile, []byte(cleaned), 0644); err != nil {
-					cleanupStatus.Status = "fail"
-					cleanupStatus.Message = "Failed to write cleaned profile file"
-					cleanupStatus.Details = err.Error()
-				} else {
-					cleanupStatus.Status = "pass"
-					cleanupStatus.Message = fmt.Sprintf("Successfully cleaned %s", filepath.Base(profileFile))
-					cleanupStatus.Details = fmt.Sprintf("Removed %d corruption issues. Backup saved to %s", totalIssues, filepath.Base(backupFile))
-				}
+			// Clean up using the new improved cleanup functions
+			if err := utils.CleanupProfileFile(profileFile); err != nil {
+				cleanupStatus.Status = "fail"
+				cleanupStatus.Message = "Failed to clean up profile file"
+				cleanupStatus.Details = err.Error()
 			} else {
-				cleanupStatus.Status = "warn"
-				cleanupStatus.Message = "No changes needed during cleanup"
-				cleanupStatus.Details = fmt.Sprintf("Backup created at %s", filepath.Base(backupFile))
+				cleanupStatus.Status = "pass"
+				cleanupStatus.Message = fmt.Sprintf("Successfully cleaned %s", filepath.Base(profileFile))
+				cleanupStatus.Details = fmt.Sprintf("Removed corruption issues. Backup saved to %s", filepath.Base(backupFile))
 			}
+			report.Checks = append(report.Checks, cleanupStatus)
+			report.Summary[cleanupStatus.Status]++
+			return
 		}
-
-		report.Checks = append(report.Checks, cleanupStatus)
-		report.Summary[cleanupStatus.Status]++
 	}
 }
 

@@ -409,7 +409,7 @@ export PATH="%s:$PATH"
 	if strings.Contains(profileContent, "jfvm") {
 		fmt.Printf("🧹 Cleaning up old jfvm entries from %s\n", primaryProfileFile)
 		// Clean up the primary profile file
-		if err := cleanupProfileFile(primaryProfileFile); err != nil {
+		if err := CleanupProfileFile(primaryProfileFile); err != nil {
 			fmt.Printf("Warning: Failed to cleanup %s: %v\n", primaryProfileFile, err)
 		}
 
@@ -470,24 +470,36 @@ export PATH="%s:$PATH"
 
 // RemoveJfvmBlock removes any existing jfvm PATH/function block from the profile content
 func RemoveJfvmBlock(content string) string {
+	fmt.Printf("🔍 Starting jfvm block removal...\n")
+	fmt.Printf("📊 Runner info: %s\n", GetRunnerInfo())
+
 	lines := strings.Split(content, "\n")
 	var newLines []string
 	inBlock := false
+	blockStartLine := -1
+	blockEndLine := -1
+	linesRemoved := 0
 
-	for _, line := range lines {
+	fmt.Printf("📝 Processing %d lines\n", len(lines))
+
+	for i, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Check for start marker (exact match)
 		if trimmedLine == JfvmBlockStart {
-			fmt.Printf("Found jfvm block start marker\n")
+			fmt.Printf("🚨 Found jfvm block start marker at line %d\n", i+1)
 			inBlock = true
+			blockStartLine = i + 1
+			linesRemoved++
 			continue
 		}
 
 		// Check for end marker (exact match)
 		if inBlock && trimmedLine == JfvmBlockEnd {
-			fmt.Printf("Found jfvm block end marker\n")
+			fmt.Printf("✅ Found jfvm block end marker at line %d\n", i+1)
 			inBlock = false
+			blockEndLine = i + 1
+			linesRemoved++
 			continue
 		}
 
@@ -495,15 +507,27 @@ func RemoveJfvmBlock(content string) string {
 		if !inBlock {
 			newLines = append(newLines, line)
 		} else {
-			fmt.Printf("Skipping line in jfvm block: %s\n", line)
+			fmt.Printf("🗑️  Skipping line %d in jfvm block: %s\n", i+1, line)
+			linesRemoved++
 		}
 	}
 
-	return strings.Join(newLines, "\n")
+	if blockStartLine > 0 && blockEndLine > 0 {
+		fmt.Printf("✅ Removed jfvm block from lines %d to %d (%d lines total)\n", blockStartLine, blockEndLine, linesRemoved)
+	} else if blockStartLine > 0 {
+		fmt.Printf("⚠️  Found start marker at line %d but no end marker - removed %d lines\n", blockStartLine, linesRemoved)
+	} else {
+		fmt.Printf("ℹ️  No jfvm blocks found\n")
+	}
+
+	result := strings.Join(newLines, "\n")
+	fmt.Printf("📊 Original: %d lines, After removal: %d lines\n", len(lines), len(newLines))
+
+	return result
 }
 
-// cleanupProfileFile removes old jfvm PATH/function blocks from a profile file using block markers
-func cleanupProfileFile(profileFile string) error {
+// CleanupProfileFile removes old jfvm PATH/function blocks from a profile file using block markers
+func CleanupProfileFile(profileFile string) error {
 	// Check if file exists
 	if _, err := os.Stat(profileFile); os.IsNotExist(err) {
 		return nil // File doesn't exist, nothing to clean
@@ -522,6 +546,16 @@ func cleanupProfileFile(profileFile string) error {
 
 	// Then, remove any malformed jfvm content that might cause syntax errors
 	cleaned = removeMalformedJfvmContent(cleaned)
+
+	// Finally, remove any orphaned shell structures that might cause syntax errors
+	cleaned = removeOrphanedShellStructures(cleaned)
+
+	// As a final safety measure, remove ANY line containing jfvm-related content
+	// This is the most aggressive cleanup to ensure no jfvm content remains
+	cleaned = removeAllJfvmContent(cleaned)
+
+	// Remove the specific corrupted patterns from the user's output
+	cleaned = removeCorruptedJfvmPatterns(cleaned)
 
 	// Validate syntax before writing
 	if strings.HasSuffix(profileFile, "rc") || strings.HasSuffix(profileFile, "_profile") {
@@ -554,17 +588,33 @@ func cleanupProfileFile(profileFile string) error {
 
 // removeMalformedJfvmContent removes jfvm-related content that might cause syntax errors
 func removeMalformedJfvmContent(content string) string {
+	fmt.Printf("🔍 Starting malformed jfvm content removal...\n")
+
 	lines := strings.Split(content, "\n")
 	var newLines []string
+	linesRemoved := 0
 
-	for _, line := range lines {
+	fmt.Printf("📝 Processing %d lines for malformed content\n", len(lines))
+
+	for i, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Skip any line that contains jfvm-related content
 		// This catches any jfvm content that wasn't properly marked with block markers
 		if strings.Contains(trimmedLine, "jfvm") ||
 			strings.Contains(trimmedLine, ".jfvm") ||
-			strings.Contains(trimmedLine, "jf()") {
+			strings.Contains(trimmedLine, "jf()") ||
+			strings.Contains(trimmedLine, "JFVM_") ||
+			strings.Contains(trimmedLine, "jfvm shell function") ||
+			strings.Contains(trimmedLine, "Check if jfvm") ||
+			strings.Contains(trimmedLine, "Execute jfvm") ||
+			strings.Contains(trimmedLine, "Fallback to system") ||
+			strings.Contains(trimmedLine, "command jf") ||
+			strings.Contains(trimmedLine, "jfvm PATH configuration") ||
+			strings.Contains(trimmedLine, "jfvm-managed jf") ||
+			strings.Contains(trimmedLine, "enhanced priority") {
+			fmt.Printf("🗑️  Removing malformed jfvm content at line %d: %s\n", i+1, line)
+			linesRemoved++
 			continue
 		}
 
@@ -572,7 +622,189 @@ func removeMalformedJfvmContent(content string) string {
 		newLines = append(newLines, line)
 	}
 
-	return strings.Join(newLines, "\n")
+	fmt.Printf("📊 Removed %d lines with malformed jfvm content\n", linesRemoved)
+	result := strings.Join(newLines, "\n")
+	fmt.Printf("📊 After malformed content removal: %d lines\n", len(newLines))
+
+	return result
+}
+
+// removeOrphanedShellStructures removes orphaned if/else/fi statements that might cause syntax errors
+func removeOrphanedShellStructures(content string) string {
+	fmt.Printf("🔍 Starting orphaned shell structure removal...\n")
+
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	linesRemoved := 0
+	ifCount := 0
+	elseCount := 0
+	fiCount := 0
+	inFunction := false
+	functionDepth := 0
+
+	fmt.Printf("📝 Processing %d lines for orphaned shell structures\n", len(lines))
+
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Track function definitions
+		if strings.Contains(trimmedLine, "() {") || strings.Contains(trimmedLine, "() {") {
+			inFunction = true
+			functionDepth = 0
+		}
+
+		// Count shell control structures
+		if strings.HasPrefix(trimmedLine, "if ") || trimmedLine == "if" {
+			ifCount++
+		} else if strings.HasPrefix(trimmedLine, "else") || trimmedLine == "else" {
+			elseCount++
+		} else if trimmedLine == "fi" {
+			fiCount++
+		}
+
+		// Track function depth
+		if inFunction {
+			if strings.Contains(line, "{") {
+				functionDepth++
+			}
+			if strings.Contains(line, "}") {
+				functionDepth--
+				if functionDepth <= 0 {
+					inFunction = false
+					functionDepth = 0
+				}
+			}
+		}
+
+		// Check for orphaned else statements - be more aggressive
+		if strings.HasPrefix(trimmedLine, "else") || trimmedLine == "else" {
+			// If we haven't seen any 'if' statements yet, or if we have more 'else' than 'if', remove it
+			if ifCount == 0 || elseCount >= ifCount {
+				fmt.Printf("🚨 Removing orphaned 'else' at line %d: %s\n", i+1, line)
+				linesRemoved++
+				continue
+			}
+		}
+
+		// Check for orphaned fi statements - be more aggressive
+		if trimmedLine == "fi" {
+			// If we haven't seen any 'if' statements yet, or if we have more 'fi' than 'if', remove it
+			if ifCount == 0 || fiCount >= ifCount {
+				fmt.Printf("🚨 Removing orphaned 'fi' at line %d: %s\n", i+1, line)
+				linesRemoved++
+				continue
+			}
+		}
+
+		// Check for orphaned function content (lines that look like function body but no function declaration)
+		if !inFunction && (strings.Contains(trimmedLine, "Check if") ||
+			strings.Contains(trimmedLine, "Execute") ||
+			strings.Contains(trimmedLine, "Fallback to") ||
+			strings.Contains(trimmedLine, "command jf") ||
+			strings.Contains(trimmedLine, "jfvm-managed jf")) {
+			fmt.Printf("🚨 Removing orphaned function content at line %d: %s\n", i+1, line)
+			linesRemoved++
+			continue
+		}
+
+		// Keep the line
+		newLines = append(newLines, line)
+	}
+
+	fmt.Printf("📊 Shell structure counts - if: %d, else: %d, fi: %d\n", ifCount, elseCount, fiCount)
+	fmt.Printf("📊 Removed %d orphaned shell structures\n", linesRemoved)
+
+	result := strings.Join(newLines, "\n")
+	fmt.Printf("📊 After shell structure cleanup: %d lines\n", len(newLines))
+
+	return result
+}
+
+// removeAllJfvmContent removes ANY line containing jfvm-related content as a final safety measure
+func removeAllJfvmContent(content string) string {
+	fmt.Printf("🔍 Starting final jfvm content removal (most aggressive)...\n")
+
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	linesRemoved := 0
+
+	fmt.Printf("📝 Processing %d lines for final jfvm cleanup\n", len(lines))
+
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Remove ANY line that contains jfvm-related content
+		if strings.Contains(strings.ToLower(trimmedLine), "jfvm") ||
+			strings.Contains(trimmedLine, ".jfvm") ||
+			strings.Contains(trimmedLine, "jf()") ||
+			strings.Contains(trimmedLine, "JFVM_") ||
+			strings.Contains(trimmedLine, "jfvm shell function") ||
+			strings.Contains(trimmedLine, "Check if jfvm") ||
+			strings.Contains(trimmedLine, "Execute jfvm") ||
+			strings.Contains(trimmedLine, "Fallback to system") ||
+			strings.Contains(trimmedLine, "command jf") ||
+			strings.Contains(trimmedLine, "jfvm PATH configuration") ||
+			strings.Contains(trimmedLine, "jfvm-managed jf") ||
+			strings.Contains(trimmedLine, "enhanced priority") ||
+			strings.Contains(trimmedLine, "Check if") ||
+			strings.Contains(trimmedLine, "Execute") ||
+			strings.Contains(trimmedLine, "Fallback to") ||
+			strings.Contains(trimmedLine, "jfvm-managed") {
+			fmt.Printf("🗑️  Final removal of jfvm content at line %d: %s\n", i+1, line)
+			linesRemoved++
+			continue
+		}
+
+		// Keep non-jfvm lines
+		newLines = append(newLines, line)
+	}
+
+	fmt.Printf("📊 Final cleanup removed %d lines with jfvm content\n", linesRemoved)
+	result := strings.Join(newLines, "\n")
+	fmt.Printf("📊 After final cleanup: %d lines\n", len(newLines))
+
+	return result
+}
+
+// removeCorruptedJfvmPatterns removes the specific corrupted patterns from the user's output
+func removeCorruptedJfvmPatterns(content string) string {
+	fmt.Printf("🔍 Starting corrupted pattern removal...\n")
+
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	linesRemoved := 0
+
+	fmt.Printf("📝 Processing %d lines for corrupted pattern removal\n", len(lines))
+
+	for i, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Remove the exact corrupted patterns from the user's output
+		if strings.Contains(trimmedLine, "# jfvm shell function for enhanced priority") ||
+			strings.Contains(trimmedLine, "# Check if jfvm shim exists and is executable") ||
+			strings.Contains(trimmedLine, "# Execute jfvm-managed jf with highest priority") ||
+			strings.Contains(trimmedLine, "else") ||
+			strings.Contains(trimmedLine, "# Fallback to system jf if jfvm shim not available") ||
+			strings.Contains(trimmedLine, "command jf \"$@\"") ||
+			strings.Contains(trimmedLine, "fi") ||
+			strings.Contains(trimmedLine, "}") ||
+			strings.Contains(trimmedLine, "# jfvm PATH configuration - ensures jfvm-managed jf takes highest priority") ||
+			strings.Contains(trimmedLine, "export PATH=\"/Users/runner/.jfvm/shim:$PATH\"") ||
+			strings.Contains(trimmedLine, "jf() {") {
+			fmt.Printf("🚨 Removing corrupted pattern at line %d: %s\n", i+1, line)
+			linesRemoved++
+			continue
+		}
+
+		// Keep non-corrupted lines
+		newLines = append(newLines, line)
+	}
+
+	fmt.Printf("📊 Removed %d lines with corrupted patterns\n", linesRemoved)
+	result := strings.Join(newLines, "\n")
+	fmt.Printf("📊 After corrupted pattern removal: %d lines\n", len(newLines))
+
+	return result
 }
 
 // validateShellSyntax validates shell syntax using bash -n
@@ -742,4 +974,44 @@ func SwitchToVersion(version string) error {
 	}
 
 	return nil
+}
+
+// GetRunnerInfo returns information about the current runner environment
+func GetRunnerInfo() string {
+	info := []string{}
+
+	// Get runner ID if available
+	if runnerID := os.Getenv("RUNNER_ID"); runnerID != "" {
+		info = append(info, fmt.Sprintf("Runner ID: %s", runnerID))
+	}
+
+	// Get runner name if available
+	if runnerName := os.Getenv("RUNNER_NAME"); runnerName != "" {
+		info = append(info, fmt.Sprintf("Runner Name: %s", runnerName))
+	}
+
+	// Get workflow run ID
+	if runID := os.Getenv("GITHUB_RUN_ID"); runID != "" {
+		info = append(info, fmt.Sprintf("Run ID: %s", runID))
+	}
+
+	// Get workflow run number
+	if runNumber := os.Getenv("GITHUB_RUN_NUMBER"); runNumber != "" {
+		info = append(info, fmt.Sprintf("Run Number: %s", runNumber))
+	}
+
+	// Get job ID
+	if jobID := os.Getenv("GITHUB_JOB"); jobID != "" {
+		info = append(info, fmt.Sprintf("Job: %s", jobID))
+	}
+
+	// Get hostname
+	if hostname, err := os.Hostname(); err == nil {
+		info = append(info, fmt.Sprintf("Hostname: %s", hostname))
+	}
+
+	// Get current timestamp
+	info = append(info, fmt.Sprintf("Timestamp: %s", time.Now().Format(time.RFC3339)))
+
+	return strings.Join(info, ", ")
 }

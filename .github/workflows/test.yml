@@ -40,6 +40,41 @@ jobs:
           make build-release
           chmod +x jfvm
 
+      - name: Debug Profile Contents
+        run: |
+          echo "=== Ubuntu Runner Information ==="
+          echo "Runner ID: $RUNNER_ID"
+          echo "Runner Name: $RUNNER_NAME"
+          echo "Run ID: $GITHUB_RUN_ID"
+          echo "Run Number: $GITHUB_RUN_NUMBER"
+          echo "Job: $GITHUB_JOB"
+          echo "Hostname: $(hostname)"
+          echo "Timestamp: $(date)"
+          echo ""
+          
+          echo "=== Ubuntu Profile Contents ==="
+          if [ -f /home/runner/.bash_profile ]; then
+            echo "Lines in .bash_profile:"
+            wc -l /home/runner/.bash_profile
+            echo "First 20 lines:"
+            head -20 /home/runner/.bash_profile
+            echo "Last 20 lines:"
+            tail -20 /home/runner/.bash_profile
+          else
+            echo ".bash_profile does not exist"
+          fi
+          
+          if [ -f /home/runner/.bashrc ]; then
+            echo "Lines in .bashrc:"
+            wc -l /home/runner/.bashrc
+            echo "First 20 lines:"
+            head -20 /home/runner/.bashrc
+            echo "Last 20 lines:"
+            tail -20 /home/runner/.bashrc
+          else
+            echo ".bashrc does not exist"
+          fi
+
       - name: Run E2E tests
         env:
           JFVM_PATH: ${{ github.workspace }}/jfvm
@@ -104,6 +139,31 @@ jobs:
           
           # Final health check
           ./jfvm health-check
+
+      - name: Debug Profile Contents Before E2E
+        run: |
+          echo "=== macOS E2E Profile Contents ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            echo "Lines in .bash_profile:"
+            wc -l /Users/runner/.bash_profile
+            echo "First 20 lines:"
+            head -20 /Users/runner/.bash_profile
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.bash_profile
+          else
+            echo ".bash_profile does not exist"
+          fi
+          
+          if [ -f /Users/runner/.zshrc ]; then
+            echo "Lines in .zshrc:"
+            wc -l /Users/runner/.zshrc
+            echo "First 20 lines:"
+            head -20 /Users/runner/.zshrc
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.zshrc
+          else
+            echo ".zshrc does not exist"
+          fi
 
       - name: Run E2E tests
         env:
@@ -170,14 +230,102 @@ jobs:
           # Final health check
           jfvm health-check
 
+      - name: Debug Profile Contents Before Latest Test
+        run: |
+          echo "=== Brew Installation Profile Contents ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            echo "Lines in .bash_profile:"
+            wc -l /Users/runner/.bash_profile
+            echo "First 20 lines:"
+            head -20 /Users/runner/.bash_profile
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.bash_profile
+          else
+            echo ".bash_profile does not exist"
+          fi
+          
+          if [ -f /Users/runner/.zshrc ]; then
+            echo "Lines in .zshrc:"
+            wc -l /Users/runner/.zshrc
+            echo "First 20 lines:"
+            head -20 /Users/runner/.zshrc
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.zshrc
+          else
+            echo ".zshrc does not exist"
+          fi
+
       - name: Test latest version functionality
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          # Debug: Show runner information
+          echo "=== Runner Information ==="
+          echo "Runner ID: $RUNNER_ID"
+          echo "Runner Name: $RUNNER_NAME"
+          echo "Run ID: $GITHUB_RUN_ID"
+          echo "Run Number: $GITHUB_RUN_NUMBER"
+          echo "Job: $GITHUB_JOB"
+          echo "Hostname: $(hostname)"
+          echo "Timestamp: $(date)"
+          echo ""
+          
+          # Debug: Show profile contents before any operations
+          echo "=== Profile Contents Before Operations ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            echo "Lines in .bash_profile:"
+            wc -l /Users/runner/.bash_profile
+            echo "First 20 lines:"
+            head -20 /Users/runner/.bash_profile
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.bash_profile
+          else
+            echo ".bash_profile does not exist"
+          fi
+          echo ""
+          
           # Check health status and fix issues
-          jfvm health-check --fix
-          cat /Users/runner/.bash_profile
-          source /Users/runner/.bash_profile
+          echo "=== Running Health Check with Fix ==="
+          jfvm health-check --fix --verbose
+          echo ""
+          
+          # Debug: Show profile contents after health check
+          echo "=== Profile Contents After Health Check ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            echo "Lines in .bash_profile:"
+            wc -l /Users/runner/.bash_profile
+            echo "First 20 lines:"
+            head -20 /Users/runner/.bash_profile
+            echo "Last 20 lines:"
+            tail -20 /Users/runner/.bash_profile
+          else
+            echo ".bash_profile does not exist"
+          fi
+          echo ""
+          
+          # Test syntax validation
+          echo "=== Testing Profile Syntax ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            if bash -n /Users/runner/.bash_profile; then
+              echo "✅ Profile syntax is valid"
+            else
+              echo "❌ Profile syntax is invalid"
+              echo "Showing problematic lines:"
+              bash -n /Users/runner/.bash_profile 2>&1 || true
+            fi
+          fi
+          echo ""
+          
+          # Only source if syntax is valid
+          echo "=== Sourcing Profile ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            if bash -n /Users/runner/.bash_profile; then
+              echo "Sourcing .bash_profile..."
+              source /Users/runner/.bash_profile
+            else
+              echo "Skipping source due to syntax errors"
+            fi
+          fi
 
           # Test using latest version
           jfvm use latest
