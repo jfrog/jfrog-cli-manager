@@ -66,7 +66,7 @@ jobs:
           
       - name: Create Release
         id: create_release
-        uses: actions/create-release@v1
+        uses: actions/create-release@v1.1.4
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -88,45 +88,18 @@ jobs:
           draft: false
           prerelease: false
 
-      - name: Upload macOS AMD64 Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload Release Assets
+        uses: actions/upload-release-asset@v1.0.2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz
+          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-${{ matrix.platform }}.tar.gz
+          asset_name: jfvm-${{ steps.tag.outputs.tag }}-${{ matrix.platform }}.tar.gz
           asset_content_type: application/gzip
-
-      - name: Upload macOS ARM64 Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux AMD64 Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux ARM64 Asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
-          asset_content_type: application/gzip
+        strategy:
+          matrix:
+            platform: [darwin-amd64, darwin-arm64, linux-amd64, linux-arm64]
 
 
 
