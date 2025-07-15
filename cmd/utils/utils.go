@@ -470,60 +470,32 @@ export PATH="%s:$PATH"
 
 // RemoveJfvmBlock removes any existing jfvm PATH/function block from the profile content
 func RemoveJfvmBlock(content string) string {
-	fmt.Printf("🔍 Starting jfvm block removal...\n")
-	fmt.Printf("📊 Runner info: %s\n", GetRunnerInfo())
-
 	lines := strings.Split(content, "\n")
 	var newLines []string
 	inBlock := false
-	blockStartLine := -1
-	blockEndLine := -1
-	linesRemoved := 0
 
-	fmt.Printf("📝 Processing %d lines\n", len(lines))
-
-	for i, line := range lines {
+	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Check for start marker (exact match)
 		if trimmedLine == JfvmBlockStart {
-			fmt.Printf("🚨 Found jfvm block start marker at line %d\n", i+1)
 			inBlock = true
-			blockStartLine = i + 1
-			linesRemoved++
 			continue
 		}
 
 		// Check for end marker (exact match)
 		if inBlock && trimmedLine == JfvmBlockEnd {
-			fmt.Printf("✅ Found jfvm block end marker at line %d\n", i+1)
 			inBlock = false
-			blockEndLine = i + 1
-			linesRemoved++
 			continue
 		}
 
 		// Only keep lines that are not inside a jfvm block
 		if !inBlock {
 			newLines = append(newLines, line)
-		} else {
-			fmt.Printf("🗑️  Skipping line %d in jfvm block: %s\n", i+1, line)
-			linesRemoved++
 		}
 	}
 
-	if blockStartLine > 0 && blockEndLine > 0 {
-		fmt.Printf("✅ Removed jfvm block from lines %d to %d (%d lines total)\n", blockStartLine, blockEndLine, linesRemoved)
-	} else if blockStartLine > 0 {
-		fmt.Printf("⚠️  Found start marker at line %d but no end marker - removed %d lines\n", blockStartLine, linesRemoved)
-	} else {
-		fmt.Printf("ℹ️  No jfvm blocks found\n")
-	}
-
-	result := strings.Join(newLines, "\n")
-	fmt.Printf("📊 Original: %d lines, After removal: %d lines\n", len(lines), len(newLines))
-
-	return result
+	return strings.Join(newLines, "\n")
 }
 
 // CleanupProfileFile removes old jfvm PATH/function blocks from a profile file using block markers
@@ -588,15 +560,10 @@ func CleanupProfileFile(profileFile string) error {
 
 // removeMalformedJfvmContent removes jfvm-related content that might cause syntax errors
 func removeMalformedJfvmContent(content string) string {
-	fmt.Printf("🔍 Starting malformed jfvm content removal...\n")
-
 	lines := strings.Split(content, "\n")
 	var newLines []string
-	linesRemoved := 0
 
-	fmt.Printf("📝 Processing %d lines for malformed content\n", len(lines))
-
-	for i, line := range lines {
+	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Skip any line that contains jfvm-related content
@@ -613,8 +580,6 @@ func removeMalformedJfvmContent(content string) string {
 			strings.Contains(trimmedLine, "jfvm PATH configuration") ||
 			strings.Contains(trimmedLine, "jfvm-managed jf") ||
 			strings.Contains(trimmedLine, "enhanced priority") {
-			fmt.Printf("🗑️  Removing malformed jfvm content at line %d: %s\n", i+1, line)
-			linesRemoved++
 			continue
 		}
 
@@ -622,11 +587,7 @@ func removeMalformedJfvmContent(content string) string {
 		newLines = append(newLines, line)
 	}
 
-	fmt.Printf("📊 Removed %d lines with malformed jfvm content\n", linesRemoved)
-	result := strings.Join(newLines, "\n")
-	fmt.Printf("📊 After malformed content removal: %d lines\n", len(newLines))
-
-	return result
+	return strings.Join(newLines, "\n")
 }
 
 // removeOrphanedShellStructures removes orphaned if/else/fi statements that might cause syntax errors
