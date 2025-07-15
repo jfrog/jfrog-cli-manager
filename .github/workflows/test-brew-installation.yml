@@ -133,7 +133,7 @@ jobs:
           
           # Test which jf again
           which jf
-          
+
           # Test jf execution again
           jf --version
 
