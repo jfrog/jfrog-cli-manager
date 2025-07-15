@@ -31,39 +31,14 @@ jobs:
           
           echo "Final shell: $SHELL"
           
-          # Clean up any existing shell profiles from previous runs
-          echo "=== Cleaning up shell profiles from previous runs ==="
+          # Show existing shell profiles for debugging
+          echo "=== Checking existing shell profiles ==="
           for profile in ~/.bash_profile ~/.bashrc ~/.zshrc; do
             if [ -f "$profile" ]; then
               echo "Found existing profile: $profile"
               echo "=== Contents of $profile ==="
               cat "$profile" || echo "Could not read $profile"
               echo "=== End of $profile ==="
-              
-              # Remove any jfvm-related content and error-causing lines
-              if grep -q "jfvm\|else\|if[[:space:]]*$" "$profile" 2>/dev/null; then
-                echo "Removing jfvm content and error-causing lines from $profile..."
-                # Create backup
-                cp "$profile" "$profile.jfvm.backup" || echo "Could not create backup"
-                # Remove problematic lines
-                grep -v "jfvm" "$profile" 2>/dev/null | \
-                grep -v "\.jfvm" 2>/dev/null | \
-                grep -v "^[[:space:]]*else[[:space:]]*$" 2>/dev/null | \
-                grep -v "^[[:space:]]*if[[:space:]]*$" 2>/dev/null | \
-                grep -v "^[[:space:]]*fi[[:space:]]*$" 2>/dev/null > "$profile.clean" || echo "Could not create clean file"
-                
-                if [ -f "$profile.clean" ]; then
-                  mv "$profile.clean" "$profile"
-                  echo "Cleaned $profile"
-                  
-                  # Show cleaned contents
-                  echo "=== Cleaned contents of $profile ==="
-                  cat "$profile" || echo "Could not read cleaned $profile"
-                  echo "=== End of cleaned $profile ==="
-                else
-                  echo "Failed to create clean version of $profile"
-                fi
-              fi
             fi
           done
 

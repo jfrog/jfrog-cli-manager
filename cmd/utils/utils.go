@@ -440,8 +440,21 @@ export PATH="%s:$PATH"
 	// Validate syntax before writing (for bash/zsh profiles)
 	if strings.HasSuffix(primaryProfileFile, "rc") || strings.HasSuffix(primaryProfileFile, "_profile") {
 		if err := validateShellSyntax(profileContent, primaryProfileFile); err != nil {
-			return fmt.Errorf("syntax validation failed: %w", err)
+			// If syntax validation fails, try to create a minimal working profile
+			fmt.Printf("⚠️  Syntax validation failed, creating minimal profile: %v\n", err)
+			profileContent = fmt.Sprintf(`# Minimal jfvm profile
+# Original content had syntax errors
+# Original file backed up to %s.jfvm.backup
+
+%s
+`, primaryProfileFile, block)
 		}
+	}
+
+	// Create backup before writing
+	backupFile := primaryProfileFile + ".jfvm.backup"
+	if err := os.WriteFile(backupFile, []byte(string(content)), 0644); err != nil {
+		fmt.Printf("Warning: Failed to create backup: %v\n", err)
 	}
 
 	if err := os.WriteFile(primaryProfileFile, []byte(profileContent), 0644); err != nil {
@@ -466,12 +479,14 @@ func RemoveJfvmBlock(content string) string {
 
 		// Check for start marker (exact match)
 		if trimmedLine == JfvmBlockStart {
+			fmt.Printf("Found jfvm block start marker\n")
 			inBlock = true
 			continue
 		}
 
 		// Check for end marker (exact match)
 		if inBlock && trimmedLine == JfvmBlockEnd {
+			fmt.Printf("Found jfvm block end marker\n")
 			inBlock = false
 			continue
 		}
@@ -479,6 +494,8 @@ func RemoveJfvmBlock(content string) string {
 		// Only keep lines that are not inside a jfvm block
 		if !inBlock {
 			newLines = append(newLines, line)
+		} else {
+			fmt.Printf("Skipping line in jfvm block: %s\n", line)
 		}
 	}
 
@@ -506,8 +523,26 @@ func cleanupProfileFile(profileFile string) error {
 	// Then, remove any malformed jfvm content that might cause syntax errors
 	cleaned = removeMalformedJfvmContent(cleaned)
 
+	// Validate syntax before writing
+	if strings.HasSuffix(profileFile, "rc") || strings.HasSuffix(profileFile, "_profile") {
+		if err := validateShellSyntax(cleaned, profileFile); err != nil {
+			// If syntax validation fails, create a minimal clean profile
+			fmt.Printf("⚠️  Syntax validation failed after cleanup, creating minimal profile: %v\n", err)
+			cleaned = fmt.Sprintf(`# Clean profile created by jfvm cleanup
+# Original content had syntax errors
+# Original file backed up to %s.jfvm.backup
+`, profileFile)
+		}
+	}
+
 	// Only write if content changed
 	if cleaned != profileContent {
+		// Create backup before writing
+		backupFile := profileFile + ".jfvm.backup"
+		if err := os.WriteFile(backupFile, []byte(profileContent), 0644); err != nil {
+			fmt.Printf("Warning: Failed to create backup: %v\n", err)
+		}
+
 		if err := os.WriteFile(profileFile, []byte(cleaned), 0644); err != nil {
 			return fmt.Errorf("failed to write profile file: %w", err)
 		}
@@ -525,9 +560,11 @@ func removeMalformedJfvmContent(content string) string {
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Skip lines that are clearly jfvm-related
+		// Skip any line that contains jfvm-related content
+		// This catches any jfvm content that wasn't properly marked with block markers
 		if strings.Contains(trimmedLine, "jfvm") ||
-			strings.Contains(trimmedLine, ".jfvm") {
+			strings.Contains(trimmedLine, ".jfvm") ||
+			strings.Contains(trimmedLine, "jf()") {
 			continue
 		}
 
