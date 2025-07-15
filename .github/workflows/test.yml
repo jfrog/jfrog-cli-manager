@@ -174,9 +174,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Check health status
-          jfvm health-check
-          
+          # Check health status and fix issues
+          jfvm health-check --fix
+
           # Test using latest version
           jfvm use latest
           
