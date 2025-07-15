@@ -39,6 +39,8 @@ jobs:
           # Test the binary directly
           ~/.jfvm/versions/2.74.0/jf --version
 
+          jfvm health-check --fix --verbose
+
       - name: Setup shell environment
         run: |
           # Source the shell profile to load jfvm configuration
