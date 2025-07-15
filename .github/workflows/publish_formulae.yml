@@ -35,9 +35,9 @@ jobs:
           
           # Get the tag from the triggering workflow
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # For workflow_run, get the latest tag from GitHub API
-            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases/latest" | jq -r '.tag_name')
-            echo "Latest tag from GitHub API: $TAG"
+            # For workflow_run, get the highest version tag from GitHub API
+            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases" | jq -r '.[0].tag_name')
+            echo "Highest version tag from GitHub API: $TAG"
           else
             # For manual dispatch, use the input tag
             TAG="${{ github.event.inputs.tag }}"
