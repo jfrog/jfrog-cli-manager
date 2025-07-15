@@ -6,6 +6,11 @@ on:
     types:
       - completed
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -133,8 +138,7 @@ jobs:
           git config user.email github-actions@github.com
           
           echo "Adding file to git..."
-          git add Formula/jfvm.rb
-          
+          git add Formula/jfvm.rb     
           echo "Committing changes..."
           git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
           
