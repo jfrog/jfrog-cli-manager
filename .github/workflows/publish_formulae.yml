@@ -35,9 +35,17 @@ jobs:
           
           # Get the tag from the triggering workflow
           if [ "${{ github.event_name }}" == "workflow_run" ]; then
-            # For workflow_run, get the highest version tag from GitHub API
-            TAG=$(curl -s "https://api.github.com/repos/${{ github.repository }}/releases" | jq -r '.[0].tag_name')
-            echo "Highest version tag from GitHub API: $TAG"
+            # For workflow_run, get the highest version tag from GitHub API with retry
+            for i in {1..3}; do
+              TAG=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" "https://api.github.com/repos/${{ github.repository }}/releases" | jq -r '.[0].tag_name')
+              if [ "$TAG" != "null" ] && [ -n "$TAG" ]; then
+                echo "Highest version tag from GitHub API: $TAG"
+                break
+              else
+                echo "Attempt $i failed, retrying..."
+                sleep 2
+              fi
+            done
           else
             # For manual dispatch, use the input tag
             TAG="${{ github.event.inputs.tag }}"
@@ -87,6 +95,37 @@ jobs:
             exit 1
           fi
           
+          # Download all platform tar.gz files to calculate SHA256
+          echo "Downloading all platform tar.gz files to calculate SHA256..."
+          
+          # Function to download and calculate SHA256
+          download_and_calc_sha() {
+            local platform=$1
+            local url="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-${platform}.tar.gz"
+            echo "Downloading ${platform}..."
+            
+            if curl -L -f -o "jfvm-${TAG}-${platform}.tar.gz" "$url"; then
+              local sha256=$(sha256sum "jfvm-${TAG}-${platform}.tar.gz" | cut -d' ' -f1)
+              echo "${platform} SHA256: $sha256"
+              echo "SHA256_${platform//-/_}=$sha256" >> /tmp/sha256_values
+            else
+              echo "Error: Failed to download ${platform}"
+              exit 1
+            fi
+          }
+          
+          # Download all platforms
+          download_and_calc_sha "darwin-amd64"
+          download_and_calc_sha "darwin-arm64"
+          download_and_calc_sha "linux-amd64"
+          download_and_calc_sha "linux-arm64"
+          
+          # Read SHA256 values
+          SHA256_DARWIN_AMD64=$(grep "SHA256_darwin_amd64" /tmp/sha256_values | cut -d'=' -f2)
+          SHA256_DARWIN_ARM64=$(grep "SHA256_darwin_arm64" /tmp/sha256_values | cut -d'=' -f2)
+          SHA256_LINUX_AMD64=$(grep "SHA256_linux_amd64" /tmp/sha256_values | cut -d'=' -f2)
+          SHA256_LINUX_ARM64=$(grep "SHA256_linux_arm64" /tmp/sha256_values | cut -d'=' -f2)
+          
           # Generate the formula using platform-specific tar.gz
           echo "Generating jfvm.rb formula..."
           cat > jfvm.rb << EOF
@@ -98,18 +137,18 @@ jobs:
             if OS.mac?
               if Hardware::CPU.arm?
                 url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-arm64.tar.gz"
-                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-arm64.tar.gz" | sha256sum | cut -d' ' -f1)"
+                sha256 "${SHA256_DARWIN_ARM64}"
               else
                 url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-amd64.tar.gz"
-                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-amd64.tar.gz" | sha256sum | cut -d' ' -f1)"
+                sha256 "${SHA256_DARWIN_AMD64}"
               end
             elsif OS.linux?
               if Hardware::CPU.arm?
                 url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-arm64.tar.gz"
-                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-arm64.tar.gz" | sha256sum | cut -d' ' -f1)"
+                sha256 "${SHA256_LINUX_ARM64}"
               else
                 url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-amd64.tar.gz"
-                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-amd64.tar.gz" | sha256sum | cut -d' ' -f1)"
+                sha256 "${SHA256_LINUX_AMD64}"
               end
             end
             
@@ -131,6 +170,14 @@ jobs:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
           echo "=== Moving and committing formula ==="
+          
+          # Check if HOMEBREW_TAP_TOKEN is available
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Error: HOMEBREW_TAP_TOKEN secret is not set"
+            echo "Please add HOMEBREW_TAP_TOKEN secret to this repository"
+            exit 1
+          fi
+          
           mkdir -p Formula
           mv jfvm.rb Formula/jfvm.rb
           echo "Formula moved to Formula/jfvm.rb"
@@ -139,7 +186,7 @@ jobs:
           git config user.email github-actions@github.com
           
           echo "Adding file to git..."
-          git add Formula/jfvm.rb     
+          git add Formula/jfvm.rb
           echo "Committing changes..."
           git commit -m "Update jfvm formula for ${{ steps.get_tag.outputs.tag }}"
           
