@@ -205,41 +205,6 @@ jobs:
           # Test jf execution again
           jf --version
 
-      - name: Test latest version functionality
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
-          
-          # Test using latest version
-          jfvm use latest
-          
-          # Source the updated profile to apply PATH changes
-          if [ -f ~/.bash_profile ]; then
-            echo "Sourcing updated .bash_profile..."
-            # Check for syntax errors before sourcing
-            if bash -n ~/.bash_profile; then
-              source ~/.bash_profile
-            else
-              echo "Syntax error in .bash_profile, attempting to fix..."
-              # Create a backup
-              cp ~/.bash_profile ~/.bash_profile.jfvm.backup
-              # Try to fix by removing jfvm blocks and re-adding
-              jfvm health-check --fix
-              source ~/.bash_profile
-            fi
-          elif [ -f ~/.bashrc ]; then
-            echo "Sourcing updated .bashrc..."
-            source ~/.bashrc
-          fi
-          
-          # Verify latest version is active
-          jf --version
-          
-          # Check health status
-          jfvm health-check
-
       - name: Test alias functionality
         run: |
           # Ensure jfvm PATH is loaded
@@ -321,6 +286,41 @@ jobs:
           
           # Test using invalid alias
           jfvm use invalid-alias || echo "Expected error for invalid alias"
+          
+      - name: Test latest version functionality
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
+          # Test using latest version
+          jfvm use latest
+          
+          # Source the updated profile to apply PATH changes
+          if [ -f ~/.bash_profile ]; then
+            echo "Sourcing updated .bash_profile..."
+            # Check for syntax errors before sourcing
+            if bash -n ~/.bash_profile; then
+              source ~/.bash_profile
+            else
+              echo "Syntax error in .bash_profile, attempting to fix..."
+              # Create a backup
+              cp ~/.bash_profile ~/.bash_profile.jfvm.backup
+              # Try to fix by removing jfvm blocks and re-adding
+              jfvm health-check --fix
+              source ~/.bash_profile
+            fi
+          elif [ -f ~/.bashrc ]; then
+            echo "Sourcing updated .bashrc..."
+            source ~/.bashrc
+          fi
+          
+          # Verify latest version is active
+          jf --version
+          
+          # Check health status
+          jfvm health-check
 
       - name: Verify final state
         run: |
