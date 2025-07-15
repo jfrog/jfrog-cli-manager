@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -454,6 +455,13 @@ jf() {
 	}
 	profileContent += "\n" + block
 
+	// Validate syntax before writing (for bash/zsh profiles)
+	if strings.HasSuffix(primaryProfileFile, "rc") || strings.HasSuffix(primaryProfileFile, "_profile") {
+		if err := validateShellSyntax(profileContent, primaryProfileFile); err != nil {
+			return fmt.Errorf("syntax validation failed: %w", err)
+		}
+	}
+
 	if err := os.WriteFile(primaryProfileFile, []byte(profileContent), 0644); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
@@ -470,19 +478,28 @@ func RemoveJfvmBlock(content string) string {
 	lines := strings.Split(content, "\n")
 	var newLines []string
 	inBlock := false
+
 	for _, line := range lines {
-		if strings.Contains(line, JfvmBlockStart) {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Check for start marker (exact match)
+		if trimmedLine == JfvmBlockStart {
 			inBlock = true
 			continue
 		}
-		if inBlock && strings.Contains(line, JfvmBlockEnd) {
+
+		// Check for end marker (exact match)
+		if inBlock && trimmedLine == JfvmBlockEnd {
 			inBlock = false
 			continue
 		}
+
+		// Only keep lines that are not inside a jfvm block
 		if !inBlock {
 			newLines = append(newLines, line)
 		}
 	}
+
 	return strings.Join(newLines, "\n")
 }
 
@@ -500,7 +517,12 @@ func cleanupProfileFile(profileFile string) error {
 	}
 
 	profileContent := string(content)
+
+	// First, remove properly marked blocks
 	cleaned := RemoveJfvmBlock(profileContent)
+
+	// Then, remove any malformed jfvm content that might cause syntax errors
+	cleaned = removeMalformedJfvmContent(cleaned)
 
 	// Only write if content changed
 	if cleaned != profileContent {
@@ -508,6 +530,79 @@ func cleanupProfileFile(profileFile string) error {
 			return fmt.Errorf("failed to write profile file: %w", err)
 		}
 		fmt.Printf("🧹 Cleaned up old jfvm entries from %s\n", profileFile)
+	}
+
+	return nil
+}
+
+// removeMalformedJfvmContent removes jfvm-related content that might cause syntax errors
+func removeMalformedJfvmContent(content string) string {
+	lines := strings.Split(content, "\n")
+	var newLines []string
+	inJfvmFunction := false
+	braceCount := 0
+
+	for _, line := range lines {
+		trimmedLine := strings.TrimSpace(line)
+
+		// Skip lines that are clearly jfvm-related and might be malformed
+		if strings.Contains(trimmedLine, "jfvm") ||
+			strings.Contains(trimmedLine, ".jfvm") ||
+			strings.Contains(trimmedLine, "jf()") {
+
+			// If we find a jf function definition, track it
+			if strings.Contains(trimmedLine, "jf()") {
+				inJfvmFunction = true
+				braceCount = 0
+				continue
+			}
+
+			// If we're in a jf function, count braces
+			if inJfvmFunction {
+				braceCount += strings.Count(trimmedLine, "{")
+				braceCount -= strings.Count(trimmedLine, "}")
+
+				// If braces are balanced, we're out of the function
+				if braceCount <= 0 {
+					inJfvmFunction = false
+					braceCount = 0
+				}
+				continue
+			}
+
+			// Skip other jfvm-related lines
+			continue
+		}
+
+		// If we're not in a jfvm function, keep the line
+		if !inJfvmFunction {
+			newLines = append(newLines, line)
+		}
+	}
+
+	return strings.Join(newLines, "\n")
+}
+
+// validateShellSyntax validates shell syntax using bash -n
+func validateShellSyntax(content, filename string) error {
+	// Create a temporary file for validation
+	tmpFile, err := os.CreateTemp("", "jfvm-validate-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+	defer tmpFile.Close()
+
+	// Write content to temp file
+	if _, err := tmpFile.WriteString(content); err != nil {
+		return fmt.Errorf("failed to write temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	// Validate syntax using bash -n
+	cmd := exec.Command("bash", "-n", tmpFile.Name())
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("shell syntax error in %s: %w", filename, err)
 	}
 
 	return nil
