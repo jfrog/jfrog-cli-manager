@@ -10,6 +10,9 @@ on:
 jobs:
   test-brew-installation:
     runs-on: macos-latest
+    defaults:
+      run:
+        shell: zsh
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -17,8 +20,33 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
+      - name: Set up shell environment
+        run: |
+          # Ensure we're using the right shell for CI
+          echo "=== Setting up shell environment ==="
+          echo "Default shell: $SHELL"
+          
+          # On macOS, zsh is the default since Catalina
+          # But let's be explicit about it
+          if [[ "$OSTYPE" == "darwin"* ]]; then
+            echo "macOS detected, using zsh"
+            export SHELL=/bin/zsh
+          else
+            echo "Non-macOS system, using bash"
+            export SHELL=/bin/bash
+          fi
+          
+          echo "Final shell: $SHELL"
+
       - name: Install jfvm via Homebrew
         run: |
+          # Debug: Check shell environment
+          echo "=== Shell Environment Check ==="
+          echo "SHELL: $SHELL"
+          echo "Shell name: $(basename $SHELL)"
+          echo "Available shells:"
+          cat /etc/shells || echo "Cannot read /etc/shells"
+          
           # Add the jfrog tap
           brew tap jfrog/jfrog-cli-vm
           
@@ -43,8 +71,25 @@ jobs:
 
       - name: Setup shell environment
         run: |
-          # Source the shell profile to load jfvm configuration
-          source ~/.zshrc
+          # Debug: Show shell information
+          echo "=== Shell Information ==="
+          echo "Current shell: $SHELL"
+          echo "Shell name: $(basename $SHELL)"
+          echo "Current PATH: $PATH"
+          
+          # Detect and source the appropriate shell profile
+          if [ -f ~/.zshrc ]; then
+            echo "Found .zshrc, sourcing it..."
+            source ~/.zshrc
+          elif [ -f ~/.bashrc ]; then
+            echo "Found .bashrc, sourcing it..."
+            source ~/.bashrc
+          elif [ -f ~/.bash_profile ]; then
+            echo "Found .bash_profile, sourcing it..."
+            source ~/.bash_profile
+          else
+            echo "No shell profile found, continuing without sourcing..."
+          fi
           
           # Export jfvm PATH manually for CI environment
           export PATH="$HOME/.jfvm/shim:$PATH"
