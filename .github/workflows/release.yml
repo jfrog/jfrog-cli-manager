@@ -36,25 +36,59 @@ jobs:
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build binary
+      - name: Build binaries for all platforms
         run: |
           mkdir -p dist
-          go build -o dist/jfvm
+          
+          # Build for macOS AMD64
+          GOOS=darwin GOARCH=amd64 go build -o dist/jfvm-darwin-amd64 .
+          
+          # Build for macOS ARM64
+          GOOS=darwin GOARCH=arm64 go build -o dist/jfvm-darwin-arm64 .
+          
+          # Build for Linux AMD64
+          GOOS=linux GOARCH=amd64 go build -o dist/jfvm-linux-amd64 .
+          
+          # Build for Linux ARM64
+          GOOS=linux GOARCH=arm64 go build -o dist/jfvm-linux-arm64 .
+          
+          # Make all binaries executable
+          chmod +x dist/jfvm-*
 
-      - name: Create tarball
+      - name: Test binaries
         run: |
-          tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz -C dist jfvm
-
-      - name: Compute SHA256
-        id: sha
-        run: echo "sha=$(shasum -a 256 jfvm-${{ steps.tag.outputs.tag }}.tar.gz | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "Testing built binaries..."
+          ./dist/jfvm-darwin-amd64 --version
+          ./dist/jfvm-darwin-arm64 --version
+          ./dist/jfvm-linux-amd64 --version
+          ./dist/jfvm-linux-arm64 --version
 
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          files: jfvm-${{ steps.tag.outputs.tag }}.tar.gz
+          name: "jfvm ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## What's New
+            
+            This release includes:
+            - Multi-platform support (macOS ARM64/AMD64, Linux ARM64/AMD64)
+            - JFrog CLI version management
+            - Homebrew integration
+            
+            ## Downloads
+            
+            Platform-specific binaries are available for:
+            - macOS (Intel and Apple Silicon)
+            - Linux (Intel and ARM)
+          files: |
+            dist/jfvm-darwin-amd64
+            dist/jfvm-darwin-arm64
+            dist/jfvm-linux-amd64
+            dist/jfvm-linux-arm64
           token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
 
       - name: Generate Homebrew formula
         run: |
@@ -64,18 +98,34 @@ jobs:
 
           cat <<EOF > jfvm.rb
           class Jfvm < Formula
-            desc "Manage multiple versions of JFrog CLI"
+            desc "JFrog CLI Version Manager"
             homepage "https://github.com/${{ github.repository }}"
-            url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
-            sha256 "${{ steps.sha.outputs.sha }}"
             version "${VERSION_NO_V}"
-
-            def install
-              bin.install "jfvm"
+            
+            if OS.mac?
+              if Hardware::CPU.arm?
+                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-darwin-arm64"
+                sha256 "$(shasum -a 256 dist/jfvm-darwin-arm64 | awk '{print \$1}')"
+              else
+                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-darwin-amd64"
+                sha256 "$(shasum -a 256 dist/jfvm-darwin-amd64 | awk '{print \$1}')"
+              end
+            elsif OS.linux?
+              if Hardware::CPU.arm?
+                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-linux-arm64"
+                sha256 "$(shasum -a 256 dist/jfvm-linux-arm64 | awk '{print \$1}')"
+              else
+                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-linux-amd64"
+                sha256 "$(shasum -a 256 dist/jfvm-linux-amd64 | awk '{print \$1}')"
+              end
             end
-
+            
+            def install
+              bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
+            end
+            
             test do
-              system "#{bin}/jfvm", "--help"
+              system "#{bin}/jfvm", "--version"
             end
           end
           EOF
