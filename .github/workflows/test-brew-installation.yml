@@ -28,6 +28,32 @@ jobs:
           # Verify installation
           jfvm --version
 
+      - name: Install test jf binary
+        run: |
+          # Install a test version of jf for testing
+          jfvm install 2.74.0
+          
+          # Verify jf binary exists
+          ls -la ~/.jfvm/versions/2.74.0/jf
+          
+          # Test the binary directly
+          ~/.jfvm/versions/2.74.0/jf --version
+
+      - name: Setup shell environment
+        run: |
+          # Source the shell profile to load jfvm configuration
+          source ~/.zshrc
+          
+          # Export jfvm PATH manually for CI environment
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
+          # Verify jfvm is in PATH
+          echo "PATH entries:"
+          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          
+          # Test jfvm command
+          jfvm --version
+
       - name: Test basic functionality
         run: |
           # Test help command
@@ -41,8 +67,8 @@ jobs:
 
       - name: Test enhanced priority system
         run: |
-          # Install a test version
-          jfvm install 2.74.0
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
           
           # Use the version
           jfvm use 2.74.0
@@ -58,6 +84,9 @@ jobs:
 
       - name: Test health check with fixes
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test health check with fix flag
           jfvm health-check --fix
           
@@ -67,9 +96,15 @@ jobs:
           
           # Test which jf again
           which jf
+          
+          # Test jf execution again
+          jf --version
 
       - name: Test latest version functionality
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test using latest version
           jfvm use latest
           
@@ -81,6 +116,9 @@ jobs:
 
       - name: Test alias functionality
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Create an alias
           jfvm alias set test-alias 2.74.0
           
@@ -92,6 +130,9 @@ jobs:
 
       - name: Test project-specific version
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Create a .jfrog-version file
           echo "2.74.0" > .jfrog-version
           
@@ -106,11 +147,17 @@ jobs:
 
       - name: Test performance and security checks
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test health check with performance and security flags
           jfvm health-check --performance --security --verbose
 
       - name: Test error handling
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Test using non-existent version
           jfvm use non-existent-version || echo "Expected error for non-existent version"
           
@@ -119,6 +166,9 @@ jobs:
 
       - name: Verify final state
         run: |
+          # Ensure jfvm PATH is loaded
+          export PATH="$HOME/.jfvm/shim:$PATH"
+          
           # Final health check
           jfvm health-check
           
