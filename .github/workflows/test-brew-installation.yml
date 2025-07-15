@@ -10,9 +10,6 @@ on:
 jobs:
   test-brew-installation:
     runs-on: macos-latest
-    defaults:
-      run:
-        shell: zsh
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -25,16 +22,12 @@ jobs:
           # Ensure we're using the right shell for CI
           echo "=== Setting up shell environment ==="
           echo "Default shell: $SHELL"
+          echo "Current shell: $(basename $SHELL)"
           
-          # On macOS, zsh is the default since Catalina
-          # But let's be explicit about it
-          if [[ "$OSTYPE" == "darwin"* ]]; then
-            echo "macOS detected, using zsh"
-            export SHELL=/bin/zsh
-          else
-            echo "Non-macOS system, using bash"
-            export SHELL=/bin/bash
-          fi
+          # GitHub Actions uses bash by default
+          # On macOS, the system might have zsh as default, but we'll use bash for CI
+          echo "Using bash for CI environment"
+          export SHELL=/bin/bash
           
           echo "Final shell: $SHELL"
 
@@ -78,15 +71,16 @@ jobs:
           echo "Current PATH: $PATH"
           
           # Detect and source the appropriate shell profile
-          if [ -f ~/.zshrc ]; then
-            echo "Found .zshrc, sourcing it..."
-            source ~/.zshrc
-          elif [ -f ~/.bashrc ]; then
+          # Prioritize bash profiles for CI environment
+          if [ -f ~/.bashrc ]; then
             echo "Found .bashrc, sourcing it..."
             source ~/.bashrc
           elif [ -f ~/.bash_profile ]; then
             echo "Found .bash_profile, sourcing it..."
             source ~/.bash_profile
+          elif [ -f ~/.zshrc ]; then
+            echo "Found .zshrc, sourcing it as fallback..."
+            source ~/.zshrc
           else
             echo "No shell profile found, continuing without sourcing..."
           fi
