@@ -176,6 +176,7 @@ jobs:
         run: |
           # Check health status and fix issues
           jfvm health-check --fix
+          source /Users/runner/.bash_profile
 
           # Test using latest version
           jfvm use latest
