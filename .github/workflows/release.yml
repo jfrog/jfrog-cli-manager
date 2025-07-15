@@ -54,6 +54,11 @@ jobs:
           
           # Make all binaries executable
           chmod +x dist/jfvm-*
+          
+          # Create tar.gz archive for Homebrew
+          cd dist
+          tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz jfvm-*
+          cd ..
 
       - name: Test binaries
         run: |
@@ -84,6 +89,7 @@ jobs:
             dist/jfvm-darwin-arm64
             dist/jfvm-linux-amd64
             dist/jfvm-linux-arm64
+            dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
@@ -100,23 +106,8 @@ jobs:
             homepage "https://github.com/${{ github.repository }}"
             version "${VERSION_NO_V}"
             
-            if OS.mac?
-              if Hardware::CPU.arm?
-                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-darwin-arm64"
-                sha256 "$(shasum -a 256 dist/jfvm-darwin-arm64 | awk '{print \$1}')"
-              else
-                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-darwin-amd64"
-                sha256 "$(shasum -a 256 dist/jfvm-darwin-amd64 | awk '{print \$1}')"
-              end
-            elsif OS.linux?
-              if Hardware::CPU.arm?
-                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-linux-arm64"
-                sha256 "$(shasum -a 256 dist/jfvm-linux-arm64 | awk '{print \$1}')"
-              else
-                url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-linux-amd64"
-                sha256 "$(shasum -a 256 dist/jfvm-linux-amd64 | awk '{print \$1}')"
-              end
-            end
+            url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
+            sha256 "$(shasum -a 256 dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz | awk '{print \$1}')"
             
             def install
               bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
