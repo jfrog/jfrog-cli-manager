@@ -59,12 +59,25 @@ jobs:
           cd dist
           tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz jfvm-*
           cd ..
+          
+          # Debug: List all files in dist directory
+          echo "=== Files in dist directory ==="
+          ls -la dist/
+          echo "=== Tar.gz file details ==="
+          ls -la dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
 
       - name: Test binaries
         run: |
           echo "Testing built binaries..."
           ./dist/jfvm-darwin-amd64 --version
           ./dist/jfvm-darwin-arm64 --version
+
+      - name: Debug upload files
+        run: |
+          echo "=== Checking tar.gz file to upload ==="
+          echo "Tag: ${{ steps.tag.outputs.tag }}"
+          echo "Checking tar.gz file:"
+          ls -la dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
 
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
@@ -81,47 +94,14 @@ jobs:
             
             ## Downloads
             
-            Platform-specific binaries are available for:
+            The tar.gz archive contains binaries for all platforms:
             - macOS (Intel and Apple Silicon)
             - Linux (Intel and ARM)
           files: |
-            dist/jfvm-darwin-amd64
-            dist/jfvm-darwin-arm64
-            dist/jfvm-linux-amd64
-            dist/jfvm-linux-arm64
             dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false
 
-      - name: Generate Homebrew formula
-        run: |
-          # Remove 'v' prefix from tag for version
-          VERSION="${{ steps.tag.outputs.tag }}"
-          VERSION_NO_V="${VERSION#v}"
 
-          cat <<EOF > jfvm.rb
-          class Jfvm < Formula
-            desc "JFrog CLI Version Manager"
-            homepage "https://github.com/${{ github.repository }}"
-            version "${VERSION_NO_V}"
-            
-            url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
-            sha256 "$(shasum -a 256 dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz | awk '{print \$1}')"
-            
-            def install
-              bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
-            end
-            
-            test do
-              system "#{bin}/jfvm", "--version"
-            end
-          end
-          EOF
-
-      - name: Upload formula to artifacts
-        uses: actions/upload-artifact@v4.6.2
-        with:
-          name: jfvm.rb
-          path: jfvm.rb
 
