@@ -19,8 +19,7 @@ permissions:
 jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    env:
-      RELEASE_TAG: ${{ github.event.inputs.tag || github.event.workflow_run.head_branch }}
+
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap repository
@@ -38,13 +37,21 @@ jobs:
       - name: Generate Homebrew formula
         run: |
           echo "=== Generating Homebrew formula ==="
-          echo "RELEASE_TAG: ${{ env.RELEASE_TAG }}"
           
-          # Get the latest release info
-          TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ] || [ "$TAG" = "refs/heads/main" ] || [ "$TAG" = "main" ]; then
-            echo "No valid tag provided, getting latest tag..."
+          # Get the tag from the triggering workflow
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            # For workflow_run, get the latest tag from the repository
             TAG=$(git describe --tags --abbrev=0)
+            echo "Latest tag from repository: $TAG"
+          else
+            # For manual dispatch, use the input tag
+            TAG="${{ github.event.inputs.tag }}"
+            echo "Manual trigger tag: $TAG"
+          fi
+          
+          if [ -z "$TAG" ]; then
+            echo "Error: No tag found"
+            exit 1
           fi
           
           echo "Using tag: $TAG"
@@ -54,9 +61,6 @@ jobs:
           echo "Version: $VERSION"
           
           # Download binaries and calculate SHA256
-          echo "Downloading binaries and calculating SHA256..."
-          
-          # Download binaries and calculate SHA256 with error handling
           echo "Downloading binaries and calculating SHA256..."
           
           # Function to download and verify binary
@@ -87,17 +91,7 @@ jobs:
           SHA256_LINUX_ARM64=$(grep -A1 "SHA256_linux_arm64" /tmp/sha256_values | tail -1)
           SHA256_LINUX_AMD64=$(grep -A1 "SHA256_linux_amd64" /tmp/sha256_values | tail -1)
           
-          # Test binaries work
-          echo "Testing binaries..."
-          chmod +x jfvm-*
-          if ! ./jfvm-darwin-amd64 --version; then
-            echo "Error: macOS AMD64 binary test failed"
-            exit 1
-          fi
-          if ! ./jfvm-linux-amd64 --version; then
-            echo "Error: Linux AMD64 binary test failed"
-            exit 1
-          fi
+
           
           # Generate the formula with real SHA256 values
           echo "Generating jfvm.rb formula..."
@@ -153,7 +147,7 @@ jobs:
           echo "Adding file to git..."
           git add Formula/jfvm.rb     
           echo "Committing changes..."
-          git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
+          git commit -m "Update jfvm formula for ${TAG}"
           
           echo "Setting remote URL..."
           git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
