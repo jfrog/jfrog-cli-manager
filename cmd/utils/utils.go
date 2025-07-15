@@ -362,10 +362,10 @@ if %ERRORLEVEL% == 0 (
 `
 }
 
-// Unique block markers for jfvm PATH and function
+// Unique block markers for jfvm PATH
 const (
-	JfvmBlockStart = "# >>> jfvm PATH and function (managed by jfvm)"
-	JfvmBlockEnd   = "# <<< jfvm PATH and function (managed by jfvm)"
+	JfvmBlockStart = "# >>> jfvm PATH (managed by jfvm)"
+	JfvmBlockEnd   = "# <<< jfvm PATH (managed by jfvm)"
 )
 
 // UpdatePATH updates the user's shell profile to include jfvm shim in PATH with highest priority
@@ -395,18 +395,9 @@ func UpdatePATH() error {
 	profileContent := string(content)
 
 	// Check if the correct jfvm block already exists
-	expectedBlock := fmt.Sprintf(`# >>> jfvm PATH and function (managed by jfvm)
+	expectedBlock := fmt.Sprintf(`# >>> jfvm PATH (managed by jfvm)
 export PATH="%s:$PATH"
-
-# jfvm shell function for enhanced priority (similar to nvm approach)
-jf() {
-    if [ -x "%s/jf" ]; then
-        "%s/jf" "$@"
-    else
-        command jf "$@"
-    fi
-}
-# <<< jfvm PATH and function (managed by jfvm)`, JfvmShim, JfvmShim, JfvmShim)
+# <<< jfvm PATH (managed by jfvm)`, JfvmShim)
 
 	// Check if the expected block is already present
 	if strings.Contains(profileContent, expectedBlock) {
@@ -415,7 +406,7 @@ jf() {
 	}
 
 	// Check if there are any jfvm-related entries that need cleanup
-	if strings.Contains(profileContent, "jfvm") || strings.Contains(profileContent, "jf() {") {
+	if strings.Contains(profileContent, "jfvm") {
 		fmt.Printf("🧹 Cleaning up old jfvm entries from %s\n", primaryProfileFile)
 		// Clean up the primary profile file
 		if err := cleanupProfileFile(primaryProfileFile); err != nil {
@@ -433,20 +424,11 @@ jf() {
 	// Remove any existing jfvm block (even if partial/corrupted)
 	profileContent = RemoveJfvmBlock(profileContent)
 
-	// Add jfvm shim PATH and function block
-	block := fmt.Sprintf(`# >>> jfvm PATH and function (managed by jfvm)
+	// Add jfvm shim PATH block
+	block := fmt.Sprintf(`# >>> jfvm PATH (managed by jfvm)
 export PATH="%s:$PATH"
-
-# jfvm shell function for enhanced priority (similar to nvm approach)
-jf() {
-    if [ -x "%s/jf" ]; then
-        "%s/jf" "$@"
-    else
-        command jf "$@"
-    fi
-}
-# <<< jfvm PATH and function (managed by jfvm)
-`, JfvmShim, JfvmShim, JfvmShim)
+# <<< jfvm PATH (managed by jfvm)
+`, JfvmShim)
 
 	// Ensure proper formatting: trim trailing whitespace and add newline if needed
 	profileContent = strings.TrimRight(profileContent, "\n\r\t ")
@@ -539,45 +521,18 @@ func cleanupProfileFile(profileFile string) error {
 func removeMalformedJfvmContent(content string) string {
 	lines := strings.Split(content, "\n")
 	var newLines []string
-	inJfvmFunction := false
-	braceCount := 0
 
 	for _, line := range lines {
 		trimmedLine := strings.TrimSpace(line)
 
-		// Skip lines that are clearly jfvm-related and might be malformed
+		// Skip lines that are clearly jfvm-related
 		if strings.Contains(trimmedLine, "jfvm") ||
-			strings.Contains(trimmedLine, ".jfvm") ||
-			strings.Contains(trimmedLine, "jf()") {
-
-			// If we find a jf function definition, track it
-			if strings.Contains(trimmedLine, "jf()") {
-				inJfvmFunction = true
-				braceCount = 0
-				continue
-			}
-
-			// If we're in a jf function, count braces
-			if inJfvmFunction {
-				braceCount += strings.Count(trimmedLine, "{")
-				braceCount -= strings.Count(trimmedLine, "}")
-
-				// If braces are balanced, we're out of the function
-				if braceCount <= 0 {
-					inJfvmFunction = false
-					braceCount = 0
-				}
-				continue
-			}
-
-			// Skip other jfvm-related lines
+			strings.Contains(trimmedLine, ".jfvm") {
 			continue
 		}
 
-		// If we're not in a jfvm function, keep the line
-		if !inJfvmFunction {
-			newLines = append(newLines, line)
-		}
+		// Keep non-jfvm lines
+		newLines = append(newLines, line)
 	}
 
 	return strings.Join(newLines, "\n")

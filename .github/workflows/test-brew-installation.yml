@@ -31,23 +31,33 @@ jobs:
           
           echo "Final shell: $SHELL"
           
-          # Pre-flight check: Fix any existing syntax errors in profile files
-          echo "=== Pre-flight syntax check ==="
+          # Clean up any existing shell profiles from previous runs
+          echo "=== Cleaning up shell profiles from previous runs ==="
           for profile in ~/.bash_profile ~/.bashrc ~/.zshrc; do
             if [ -f "$profile" ]; then
-              echo "Checking $profile for syntax errors..."
-              if ! bash -n "$profile" 2>/dev/null; then
-                echo "Syntax error found in $profile, attempting emergency fix..."
-                # Create emergency backup
-                cp "$profile" "$profile.emergency.backup"
+              echo "Found existing profile: $profile"
+              echo "=== Contents of $profile ==="
+              cat "$profile"
+              echo "=== End of $profile ==="
+              
+              # Remove any jfvm-related content and error-causing lines
+              if grep -q "jfvm\|else\|if.*$" "$profile"; then
+                echo "Removing jfvm content and error-causing lines from $profile..."
+                # Create backup
+                cp "$profile" "$profile.jfvm.backup"
                 # Remove problematic lines
-                sed -i.bak '/^[[:space:]]*else[[:space:]]*$/d' "$profile"
-                sed -i.bak '/^[[:space:]]*if[[:space:]]*$/d' "$profile"
-                sed -i.bak '/jfvm/d' "$profile"
-                sed -i.bak '/\.jfvm/d' "$profile"
-                echo "Emergency fix applied to $profile"
-              else
-                echo "$profile syntax is valid"
+                grep -v "jfvm" "$profile" | \
+                grep -v "\.jfvm" | \
+                grep -v "^[[:space:]]*else[[:space:]]*$" | \
+                grep -v "^[[:space:]]*if[[:space:]]*$" | \
+                grep -v "^[[:space:]]*fi[[:space:]]*$" > "$profile.clean"
+                mv "$profile.clean" "$profile"
+                echo "Cleaned $profile"
+                
+                # Show cleaned contents
+                echo "=== Cleaned contents of $profile ==="
+                cat "$profile"
+                echo "=== End of cleaned $profile ==="
               fi
             fi
           done
@@ -91,48 +101,6 @@ jobs:
           echo "Shell name: $(basename $SHELL)"
           echo "Current PATH: $PATH"
           
-          # Check for corrupted profile files and restore from backup if needed
-          if [ -f ~/.bash_profile ]; then
-            echo "Checking .bash_profile for syntax errors..."
-            if ! bash -n ~/.bash_profile; then
-              echo "Syntax error found in .bash_profile"
-              if [ -f ~/.bash_profile.jfvm.backup ]; then
-                echo "Restoring from backup..."
-                cp ~/.bash_profile.jfvm.backup ~/.bash_profile
-              else
-                echo "No backup found, attempting to fix with jfvm..."
-                # Try to fix common syntax errors manually
-                echo "Attempting manual fix for common syntax errors..."
-                # Create a backup before attempting fixes
-                cp ~/.bash_profile ~/.bash_profile.emergency.backup
-                # Remove lines with unexpected 'else' tokens
-                sed -i.bak '/^[[:space:]]*else[[:space:]]*$/d' ~/.bash_profile
-                # Remove incomplete if statements
-                sed -i.bak '/^[[:space:]]*if[[:space:]]*$/d' ~/.bash_profile
-                # Remove any jfvm-related malformed content
-                sed -i.bak '/jfvm/d' ~/.bash_profile
-                sed -i.bak '/\.jfvm/d' ~/.bash_profile
-                # Try jfvm health check fix
-                jfvm health-check --fix
-              fi
-            fi
-          fi
-          
-          # Detect and source the appropriate shell profile
-          # Prioritize bash profiles for CI environment
-          if [ -f ~/.bashrc ]; then
-            echo "Found .bashrc, sourcing it..."
-            source ~/.bashrc
-          elif [ -f ~/.bash_profile ]; then
-            echo "Found .bash_profile, sourcing it..."
-            source ~/.bash_profile
-          elif [ -f ~/.zshrc ]; then
-            echo "Found .zshrc, sourcing it as fallback..."
-            source ~/.zshrc
-          else
-            echo "No shell profile found, continuing without sourcing..."
-          fi
-          
           # Export jfvm PATH manually for CI environment
           export PATH="$HOME/.jfvm/shim:$PATH"
           
@@ -162,20 +130,11 @@ jobs:
           # Use the version
           jfvm use 2.74.0
           
-          # Source the updated profile to apply PATH changes
+          # Show profile contents if they exist
           if [ -f ~/.bash_profile ]; then
-            echo "Sourcing updated .bash_profile..."
-            # Check for syntax errors before sourcing
-            if bash -n ~/.bash_profile; then
-              source ~/.bash_profile
-            else
-              echo "Syntax error in .bash_profile, attempting to fix..."
-              jfvm health-check --fix
-              source ~/.bash_profile
-            fi
-          elif [ -f ~/.bashrc ]; then
-            echo "Sourcing updated .bashrc..."
-            source ~/.bashrc
+            echo "=== Contents of .bash_profile ==="
+            cat ~/.bash_profile
+            echo "=== End of .bash_profile ==="
           fi
           
           # Verify which jf is being used
@@ -216,22 +175,6 @@ jobs:
           # Use the alias
           jfvm use test-alias
           
-          # Source the updated profile to apply PATH changes
-          if [ -f ~/.bash_profile ]; then
-            echo "Sourcing updated .bash_profile..."
-            # Check for syntax errors before sourcing
-            if bash -n ~/.bash_profile; then
-              source ~/.bash_profile
-            else
-              echo "Syntax error in .bash_profile, attempting to fix..."
-              jfvm health-check --fix
-              source ~/.bash_profile
-            fi
-          elif [ -f ~/.bashrc ]; then
-            echo "Sourcing updated .bashrc..."
-            source ~/.bashrc
-          fi
-          
           # Verify alias works
           jf --version
 
@@ -245,22 +188,6 @@ jobs:
           
           # Use without arguments (should read from .jfrog-version)
           jfvm use
-          
-          # Source the updated profile to apply PATH changes
-          if [ -f ~/.bash_profile ]; then
-            echo "Sourcing updated .bash_profile..."
-            # Check for syntax errors before sourcing
-            if bash -n ~/.bash_profile; then
-              source ~/.bash_profile
-            else
-              echo "Syntax error in .bash_profile, attempting to fix..."
-              jfvm health-check --fix
-              source ~/.bash_profile
-            fi
-          elif [ -f ~/.bashrc ]; then
-            echo "Sourcing updated .bashrc..."
-            source ~/.bashrc
-          fi
           
           # Verify correct version is active
           jf --version
@@ -297,23 +224,11 @@ jobs:
           # Test using latest version
           jfvm use latest
           
-          # Source the updated profile to apply PATH changes
+          # Show profile contents if they exist
           if [ -f ~/.bash_profile ]; then
-            echo "Sourcing updated .bash_profile..."
-            # Check for syntax errors before sourcing
-            if bash -n ~/.bash_profile; then
-              source ~/.bash_profile
-            else
-              echo "Syntax error in .bash_profile, attempting to fix..."
-              # Create a backup
-              cp ~/.bash_profile ~/.bash_profile.jfvm.backup
-              # Try to fix by removing jfvm blocks and re-adding
-              jfvm health-check --fix
-              source ~/.bash_profile
-            fi
-          elif [ -f ~/.bashrc ]; then
-            echo "Sourcing updated .bashrc..."
-            source ~/.bashrc
+            echo "=== Contents of .bash_profile ==="
+            cat ~/.bash_profile
+            echo "=== End of .bash_profile ==="
           fi
           
           # Verify latest version is active
