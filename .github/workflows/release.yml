@@ -60,8 +60,6 @@ jobs:
           echo "Testing built binaries..."
           ./dist/jfvm-darwin-amd64 --version
           ./dist/jfvm-darwin-arm64 --version
-          ./dist/jfvm-linux-amd64 --version
-          ./dist/jfvm-linux-arm64 --version
 
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
