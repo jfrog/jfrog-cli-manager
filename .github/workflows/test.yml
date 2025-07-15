@@ -179,6 +179,10 @@ jobs:
           # Test using a specific version instead of latest to avoid API issues
           jfvm use 2.77.0
           
+          # Fix PATH configuration and source the profile
+          jfvm health-check --fix
+          source ~/.bash_profile
+          
           # Verify latest version is active
           jf --version
           
