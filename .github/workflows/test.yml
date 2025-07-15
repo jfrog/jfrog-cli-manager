@@ -171,6 +171,8 @@ jobs:
           jfvm health-check
 
       - name: Test latest version functionality
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Test using latest version
           jfvm use latest

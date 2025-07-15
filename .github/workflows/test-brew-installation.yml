@@ -101,6 +101,8 @@ jobs:
           jf --version
 
       - name: Test latest version functionality
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Ensure jfvm PATH is loaded
           export PATH="$HOME/.jfvm/shim:$PATH"

@@ -28,7 +28,7 @@ var Use = &cli.Command{
 			// Handle "latest" parameter
 			if strings.ToLower(v) == "latest" {
 				fmt.Println("Fetching latest version...")
-				latestVersion, err := utils.GetLatestVersion()
+				latestVersion, err := utils.GetLatestVersionWithFallback()
 				if err != nil {
 					return fmt.Errorf("failed to get latest version: %w", err)
 				}
