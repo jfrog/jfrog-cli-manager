@@ -18,7 +18,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
       - name: Set up Go
         uses: actions/setup-go@v4
@@ -30,134 +30,54 @@ jobs:
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
             echo "Detected manual run"
-            TAG="${{ github.event.inputs.tag }}"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "Using manual tag: $TAG"
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
           else
             echo "Detected tag push"
-            TAG="${GITHUB_REF#refs/tags/}"
-            echo "tag=$TAG" >> $GITHUB_OUTPUT
-            echo "Using pushed tag: $TAG"
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
           fi
 
-      - name: Build binaries for all platforms
+      - name: Build binary
         run: |
           mkdir -p dist
-          
-          # Build for macOS AMD64 (Intel)
-          echo "Building macOS AMD64 (Intel) binary..."
-          GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.tag.outputs.tag }}" -o jfvm .
-          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz jfvm
-          
-          # Build for macOS ARM64 (Apple Silicon)
-          echo "Building macOS ARM64 (Apple Silicon) binary..."
-          GOOS=darwin GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.tag.outputs.tag }}" -o jfvm .
-          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz jfvm
-          
-          # Build for Linux AMD64 (Intel)
-          echo "Building Linux AMD64 (Intel) binary..."
-          GOOS=linux GOARCH=amd64 go build -ldflags "-X main.Version=${{ steps.tag.outputs.tag }}" -o jfvm .
-          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz jfvm
-          
-          # Build for Linux ARM64 (ARM)
-          echo "Building Linux ARM64 (ARM) binary..."
-          GOOS=linux GOARCH=arm64 go build -ldflags "-X main.Version=${{ steps.tag.outputs.tag }}" -o jfvm .
-          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz jfvm
-          
-          # Verify all files were created
-          echo "Verifying build artifacts..."
-          ls -la dist/
-          for platform in darwin-amd64 darwin-arm64 linux-amd64 linux-arm64; do
-            if [ ! -f "dist/jfvm-${{ steps.tag.outputs.tag }}-$platform.tar.gz" ]; then
-              echo "ERROR: Missing build artifact for $platform"
-              exit 1
-            fi
-          done
-          echo "All build artifacts created successfully!"
-          
-      - name: Check if release exists
-        id: check_release
-        run: |
-          if gh release view ${{ steps.tag.outputs.tag }} >/dev/null 2>&1; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "Release ${{ steps.tag.outputs.tag }} already exists"
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "Release ${{ steps.tag.outputs.tag }} does not exist"
-          fi
+          go build -o dist/jfvm
 
-      - name: Create Release
-        id: create_release
-        if: steps.check_release.outputs.exists != 'true'
-        uses: actions/create-release@v1.1.4
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create tarball
+        run: |
+          tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz -C dist jfvm
+
+      - name: Compute SHA256
+        id: sha
+        run: echo "sha=$(shasum -a 256 jfvm-${{ steps.tag.outputs.tag }}.tar.gz | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Upload GitHub Release
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
-          release_name: jfvm ${{ steps.tag.outputs.tag }}
-          body: |
-            ## What's New
-            
-            This release includes:
-            - Multi-platform support (macOS ARM64/AMD64, Linux ARM64/AMD64)
-            - JFrog CLI version management
-            - Homebrew integration
-            
-            ## Downloads
-            
-            Platform-specific binaries are available for:
-            - macOS (Intel and Apple Silicon)
-            - Linux (Intel and ARM)
-          draft: false
-          prerelease: false
+          files: jfvm-${{ steps.tag.outputs.tag }}.tar.gz
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Get existing release upload URL
-        id: get_upload_url
-        if: steps.check_release.outputs.exists == 'true'
+      - name: Generate Homebrew formula
         run: |
-          UPLOAD_URL=$(gh release view ${{ steps.tag.outputs.tag }} --json uploadUrl --jq .uploadUrl)
-          echo "upload_url=$UPLOAD_URL" >> $GITHUB_OUTPUT
-          echo "Using existing release upload URL: $UPLOAD_URL"
+          cat <<EOF > jfvm.rb
+          class Jfvm < Formula
+            desc "Manage multiple versions of JFrog CLI"
+            homepage "https://github.com/${{ github.repository }}"
+            url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
+            sha256 "${{ steps.sha.outputs.sha }}"
+            version "${{{ steps.tag.outputs.tag }}#v}"
 
-      - name: Upload macOS AMD64 Asset
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            def install
+              bin.install "jfvm"
+            end
+
+            test do
+              system "#{bin}/jfvm", "--help"
+            end
+          end
+          EOF
+
+      - name: Upload formula to artifacts
+        uses: actions/upload-artifact@v4.6.2
         with:
-          upload_url: ${{ steps.create_release.outputs.upload_url || steps.get_upload_url.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload macOS ARM64 Asset
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url || steps.get_upload_url.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux AMD64 Asset
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url || steps.get_upload_url.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz
-          asset_content_type: application/gzip
-
-      - name: Upload Linux ARM64 Asset
-        uses: actions/upload-release-asset@v1.0.2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url || steps.get_upload_url.outputs.upload_url }}
-          asset_path: ./dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
-          asset_name: jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
-          asset_content_type: application/gzip
-
-
-
+          name: jfvm.rb
+          path: jfvm.rb
