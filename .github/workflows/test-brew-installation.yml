@@ -70,6 +70,21 @@ jobs:
           echo "Shell name: $(basename $SHELL)"
           echo "Current PATH: $PATH"
           
+          # Check for corrupted profile files and restore from backup if needed
+          if [ -f ~/.bash_profile ]; then
+            echo "Checking .bash_profile for syntax errors..."
+            if ! bash -n ~/.bash_profile; then
+              echo "Syntax error found in .bash_profile"
+              if [ -f ~/.bash_profile.jfvm.backup ]; then
+                echo "Restoring from backup..."
+                cp ~/.bash_profile.jfvm.backup ~/.bash_profile
+              else
+                echo "No backup found, attempting to fix with jfvm..."
+                jfvm health-check --fix
+              fi
+            fi
+          fi
+          
           # Detect and source the appropriate shell profile
           # Prioritize bash profiles for CI environment
           if [ -f ~/.bashrc ]; then
@@ -117,7 +132,14 @@ jobs:
           # Source the updated profile to apply PATH changes
           if [ -f ~/.bash_profile ]; then
             echo "Sourcing updated .bash_profile..."
-            source ~/.bash_profile
+            # Check for syntax errors before sourcing
+            if bash -n ~/.bash_profile; then
+              source ~/.bash_profile
+            else
+              echo "Syntax error in .bash_profile, attempting to fix..."
+              jfvm health-check --fix
+              source ~/.bash_profile
+            fi
           elif [ -f ~/.bashrc ]; then
             echo "Sourcing updated .bashrc..."
             source ~/.bashrc
@@ -163,7 +185,17 @@ jobs:
           # Source the updated profile to apply PATH changes
           if [ -f ~/.bash_profile ]; then
             echo "Sourcing updated .bash_profile..."
-            source ~/.bash_profile
+            # Check for syntax errors before sourcing
+            if bash -n ~/.bash_profile; then
+              source ~/.bash_profile
+            else
+              echo "Syntax error in .bash_profile, attempting to fix..."
+              # Create a backup
+              cp ~/.bash_profile ~/.bash_profile.jfvm.backup
+              # Try to fix by removing jfvm blocks and re-adding
+              jfvm health-check --fix
+              source ~/.bash_profile
+            fi
           elif [ -f ~/.bashrc ]; then
             echo "Sourcing updated .bashrc..."
             source ~/.bashrc
@@ -189,7 +221,14 @@ jobs:
           # Source the updated profile to apply PATH changes
           if [ -f ~/.bash_profile ]; then
             echo "Sourcing updated .bash_profile..."
-            source ~/.bash_profile
+            # Check for syntax errors before sourcing
+            if bash -n ~/.bash_profile; then
+              source ~/.bash_profile
+            else
+              echo "Syntax error in .bash_profile, attempting to fix..."
+              jfvm health-check --fix
+              source ~/.bash_profile
+            fi
           elif [ -f ~/.bashrc ]; then
             echo "Sourcing updated .bashrc..."
             source ~/.bashrc
@@ -212,7 +251,14 @@ jobs:
           # Source the updated profile to apply PATH changes
           if [ -f ~/.bash_profile ]; then
             echo "Sourcing updated .bash_profile..."
-            source ~/.bash_profile
+            # Check for syntax errors before sourcing
+            if bash -n ~/.bash_profile; then
+              source ~/.bash_profile
+            else
+              echo "Syntax error in .bash_profile, attempting to fix..."
+              jfvm health-check --fix
+              source ~/.bash_profile
+            fi
           elif [ -f ~/.bashrc ]; then
             echo "Sourcing updated .bashrc..."
             source ~/.bashrc

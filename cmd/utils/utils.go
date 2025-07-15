@@ -433,9 +433,7 @@ jf() {
 	profileContent = RemoveJfvmBlock(profileContent)
 
 	// Add jfvm shim PATH and function block
-	block := fmt.Sprintf(`
-
-# >>> jfvm PATH and function (managed by jfvm)
+	block := fmt.Sprintf(`# >>> jfvm PATH and function (managed by jfvm)
 export PATH="%s:$PATH"
 
 # jfvm shell function for enhanced priority (similar to nvm approach)
@@ -447,10 +445,14 @@ jf() {
     fi
 }
 # <<< jfvm PATH and function (managed by jfvm)
-
 `, JfvmShim, JfvmShim, JfvmShim)
 
-	profileContent = strings.TrimRight(profileContent, "\n") + block
+	// Ensure proper formatting: trim trailing whitespace and add newline if needed
+	profileContent = strings.TrimRight(profileContent, "\n\r\t ")
+	if !strings.HasSuffix(profileContent, "\n") {
+		profileContent += "\n"
+	}
+	profileContent += "\n" + block
 
 	if err := os.WriteFile(primaryProfileFile, []byte(profileContent), 0644); err != nil {
 		return fmt.Errorf("failed to write profile file: %w", err)
