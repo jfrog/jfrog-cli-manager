@@ -20,7 +20,7 @@ jobs:
   publish:
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
     env:
-      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.event.workflow_run.head_branch }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout tap repository
@@ -32,7 +32,7 @@ jobs:
       - name: Checkout source repository
         uses: actions/checkout@v4
         with:
-          repository: jfrog/jfrog-cli-vm
+          repository: ${{ github.repository }}
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
 
       - name: Generate Homebrew formula
@@ -42,8 +42,8 @@ jobs:
           
           # Get the latest release info
           TAG="${{ env.RELEASE_TAG }}"
-          if [ -z "$TAG" ]; then
-            echo "No tag provided, getting latest tag..."
+          if [ -z "$TAG" ] || [ "$TAG" = "refs/heads/main" ] || [ "$TAG" = "main" ]; then
+            echo "No valid tag provided, getting latest tag..."
             TAG=$(git describe --tags --abbrev=0)
           fi
           
@@ -56,64 +56,77 @@ jobs:
           # Download binaries and calculate SHA256
           echo "Downloading binaries and calculating SHA256..."
           
-          # macOS ARM64
-          echo "Downloading macOS ARM64 binary..."
-          curl -L -o jfvm-darwin-arm64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-arm64"
-          SHA256_DARWIN_ARM64=$(sha256sum jfvm-darwin-arm64 | cut -d' ' -f1)
-          echo "macOS ARM64 SHA256: $SHA256_DARWIN_ARM64"
+          # Download binaries and calculate SHA256 with error handling
+          echo "Downloading binaries and calculating SHA256..."
           
-          # macOS AMD64
-          echo "Downloading macOS AMD64 binary..."
-          curl -L -o jfvm-darwin-amd64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-amd64"
-          SHA256_DARWIN_AMD64=$(sha256sum jfvm-darwin-amd64 | cut -d' ' -f1)
-          echo "macOS AMD64 SHA256: $SHA256_DARWIN_AMD64"
+          # Function to download and verify binary
+          download_binary() {
+            local platform=$1
+            local url="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${platform}"
+            echo "Downloading ${platform} binary..."
+            if curl -L -f -o "jfvm-${platform}" "$url"; then
+              local sha256=$(sha256sum "jfvm-${platform}" | cut -d' ' -f1)
+              echo "${platform} SHA256: $sha256"
+              echo "SHA256_${platform//-/_}" >> /tmp/sha256_values
+              echo "$sha256" >> /tmp/sha256_values
+            else
+              echo "Error: Failed to download ${platform} binary"
+              exit 1
+            fi
+          }
           
-          # Linux ARM64
-          echo "Downloading Linux ARM64 binary..."
-          curl -L -o jfvm-linux-arm64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-arm64"
-          SHA256_LINUX_ARM64=$(sha256sum jfvm-linux-arm64 | cut -d' ' -f1)
-          echo "Linux ARM64 SHA256: $SHA256_LINUX_ARM64"
+          # Download all binaries
+          download_binary "darwin-arm64"
+          download_binary "darwin-amd64"
+          download_binary "linux-arm64"
+          download_binary "linux-amd64"
           
-          # Linux AMD64
-          echo "Downloading Linux AMD64 binary..."
-          curl -L -o jfvm-linux-amd64 "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-amd64"
-          SHA256_LINUX_AMD64=$(sha256sum jfvm-linux-amd64 | cut -d' ' -f1)
-          echo "Linux AMD64 SHA256: $SHA256_LINUX_AMD64"
+          # Read SHA256 values
+          SHA256_DARWIN_ARM64=$(grep -A1 "SHA256_darwin_arm64" /tmp/sha256_values | tail -1)
+          SHA256_DARWIN_AMD64=$(grep -A1 "SHA256_darwin_amd64" /tmp/sha256_values | tail -1)
+          SHA256_LINUX_ARM64=$(grep -A1 "SHA256_linux_arm64" /tmp/sha256_values | tail -1)
+          SHA256_LINUX_AMD64=$(grep -A1 "SHA256_linux_amd64" /tmp/sha256_values | tail -1)
           
           # Test binaries work
           echo "Testing binaries..."
           chmod +x jfvm-*
-          ./jfvm-darwin-amd64 --version
-          ./jfvm-linux-amd64 --version
+          if ! ./jfvm-darwin-amd64 --version; then
+            echo "Error: macOS AMD64 binary test failed"
+            exit 1
+          fi
+          if ! ./jfvm-linux-amd64 --version; then
+            echo "Error: Linux AMD64 binary test failed"
+            exit 1
+          fi
           
           # Generate the formula with real SHA256 values
           echo "Generating jfvm.rb formula..."
           cat > jfvm.rb << EOF
           class Jfvm < Formula
             desc "JFrog CLI Version Manager"
-            homepage "https://github.com/jfrog/jfrog-cli-vm"
+            homepage "https://github.com/${{ github.repository }}"
             version "${VERSION}"
             
             if OS.mac?
               if Hardware::CPU.arm?
-                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-arm64"
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-darwin-arm64"
                 sha256 "${SHA256_DARWIN_ARM64}"
               else
-                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-darwin-amd64"
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-darwin-amd64"
                 sha256 "${SHA256_DARWIN_AMD64}"
               end
             elsif OS.linux?
               if Hardware::CPU.arm?
-                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-arm64"
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-linux-arm64"
                 sha256 "${SHA256_LINUX_ARM64}"
               else
-                url "https://github.com/jfrog/jfrog-cli-vm/releases/download/${TAG}/jfvm-linux-amd64"
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-linux-amd64"
                 sha256 "${SHA256_LINUX_AMD64}"
               end
             end
             
             def install
-              bin.install Dir["jfvm-*"]
+              bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
             end
             
             test do

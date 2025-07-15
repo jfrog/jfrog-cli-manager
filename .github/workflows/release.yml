@@ -67,12 +67,28 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           tag_name: ${{ steps.tag.outputs.tag }}
+          name: "jfvm ${{ steps.tag.outputs.tag }}"
+          body: |
+            ## What's New
+            
+            This release includes:
+            - Multi-platform support (macOS ARM64/AMD64, Linux ARM64/AMD64)
+            - JFrog CLI version management
+            - Homebrew integration
+            
+            ## Downloads
+            
+            Platform-specific binaries are available for:
+            - macOS (Intel and Apple Silicon)
+            - Linux (Intel and ARM)
           files: |
             dist/jfvm-darwin-amd64
             dist/jfvm-darwin-arm64
             dist/jfvm-linux-amd64
             dist/jfvm-linux-arm64
           token: ${{ secrets.GITHUB_TOKEN }}
+          draft: false
+          prerelease: false
 
       - name: Generate Homebrew formula
         run: |
@@ -105,7 +121,7 @@ jobs:
             end
             
             def install
-              bin.install Dir["jfvm-*"]
+              bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
             end
             
             test do
