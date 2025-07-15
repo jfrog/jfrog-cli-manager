@@ -289,6 +289,32 @@ jobs:
           jfvm health-check --fix --verbose
           echo ""
           
+          # Direct cleanup - bypass health check logic
+          echo "=== Direct Profile Cleanup ==="
+          if [ -f /Users/runner/.bash_profile ]; then
+            echo "Directly cleaning .bash_profile..."
+            # Create backup
+            cp /Users/runner/.bash_profile /Users/runner/.bash_profile.jfvm.backup
+            
+            # Manual cleanup - remove all jfvm-related lines
+            echo "Performing manual cleanup..."
+            grep -v "jfvm" /Users/runner/.bash_profile > /tmp/clean_profile
+            grep -v "jf()" /tmp/clean_profile > /tmp/cleaner_profile
+            grep -v "else" /tmp/cleaner_profile > /tmp/cleanest_profile
+            grep -v "fi" /tmp/cleanest_profile > /tmp/final_profile
+            grep -v "Check if" /tmp/final_profile > /tmp/almost_clean
+            grep -v "Execute" /tmp/almost_clean > /tmp/cleaner
+            grep -v "Fallback" /tmp/cleaner > /tmp/cleanest
+            grep -v "command jf" /tmp/cleanest > /tmp/final_clean
+            mv /tmp/final_clean /Users/runner/.bash_profile
+            
+            echo "Manual cleanup completed"
+            echo "Profile after manual cleanup:"
+            wc -l /Users/runner/.bash_profile
+            head -10 /Users/runner/.bash_profile
+          fi
+          echo ""
+          
           # Debug: Show profile contents after health check
           echo "=== Profile Contents After Health Check ==="
           if [ -f /Users/runner/.bash_profile ]; then

@@ -502,6 +502,18 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 	}
 
 	corruptionStatus := HealthStatus{Component: "Profile Corruption"}
+
+	// Debug output
+	if verbose {
+		fmt.Printf("🔍 Corruption detection results:\n")
+		fmt.Printf("   - Total issues found: %d\n", len(issues))
+		fmt.Printf("   - Issues: %v\n", issues)
+		fmt.Printf("   - jfvmBlockCount: %d\n", jfvmBlockCount)
+		fmt.Printf("   - orphanedStatements: %d\n", orphanedStatements)
+		fmt.Printf("   - pathEntries: %d\n", pathEntries)
+		fmt.Printf("   - jfFunctions: %d\n", jfFunctions)
+	}
+
 	if len(issues) > 0 {
 		corruptionStatus.Status = "fail"
 		corruptionStatus.Message = fmt.Sprintf("Found %d corruption issues in %s", totalIssues, filepath.Base(profileFile))
@@ -519,8 +531,8 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 	report.Checks = append(report.Checks, corruptionStatus)
 	report.Summary[corruptionStatus.Status]++
 
-	// If fix is requested and issues were found, clean up the profile
-	if fix && len(issues) > 0 {
+	// If fix is requested, clean up the profile (regardless of whether issues were detected)
+	if fix {
 		cleanupStatus := HealthStatus{Component: "Profile Cleanup"}
 
 		// Create backup first
