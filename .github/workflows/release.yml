@@ -40,44 +40,37 @@ jobs:
         run: |
           mkdir -p dist
           
-          # Build for macOS AMD64
-          GOOS=darwin GOARCH=amd64 go build -o dist/jfvm-darwin-amd64 .
+          # Build for macOS AMD64 (Intel)
+          echo "Building macOS AMD64 (Intel) binary..."
+          GOOS=darwin GOARCH=amd64 go build -o jfvm .
+          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz jfvm
           
-          # Build for macOS ARM64
-          GOOS=darwin GOARCH=arm64 go build -o dist/jfvm-darwin-arm64 .
+          # Build for macOS ARM64 (Apple Silicon)
+          echo "Building macOS ARM64 (Apple Silicon) binary..."
+          GOOS=darwin GOARCH=arm64 go build -o jfvm .
+          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz jfvm
           
-          # Build for Linux AMD64
-          GOOS=linux GOARCH=amd64 go build -o dist/jfvm-linux-amd64 .
+          # Build for Linux AMD64 (Intel)
+          echo "Building Linux AMD64 (Intel) binary..."
+          GOOS=linux GOARCH=amd64 go build -o jfvm .
+          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz jfvm
           
-          # Build for Linux ARM64
-          GOOS=linux GOARCH=arm64 go build -o dist/jfvm-linux-arm64 .
-          
-          # Make all binaries executable
-          chmod +x dist/jfvm-*
-          
-          # Create tar.gz archive for Homebrew
-          cd dist
-          tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz jfvm-*
-          cd ..
+          # Build for Linux ARM64 (ARM)
+          echo "Building Linux ARM64 (ARM) binary..."
+          GOOS=linux GOARCH=arm64 go build -o jfvm .
+          tar -czf dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz jfvm
           
           # Debug: List all files in dist directory
           echo "=== Files in dist directory ==="
           ls -la dist/
-          echo "=== Tar.gz file details ==="
-          ls -la dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
+          echo "=== Tar.gz files details ==="
+          ls -la dist/jfvm-${{ steps.tag.outputs.tag }}-*.tar.gz
 
       - name: Test binaries
         run: |
           echo "Testing built binaries..."
           ./dist/jfvm-darwin-amd64 --version
           ./dist/jfvm-darwin-arm64 --version
-
-      - name: Debug upload files
-        run: |
-          echo "=== Checking tar.gz file to upload ==="
-          echo "Tag: ${{ steps.tag.outputs.tag }}"
-          echo "Checking tar.gz file:"
-          ls -la dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
 
       - name: Upload GitHub Release
         uses: softprops/action-gh-release@v1
@@ -94,11 +87,14 @@ jobs:
             
             ## Downloads
             
-            The tar.gz archive contains binaries for all platforms:
+            Platform-specific binaries are available for:
             - macOS (Intel and Apple Silicon)
             - Linux (Intel and ARM)
           files: |
-            dist/jfvm-${{ steps.tag.outputs.tag }}.tar.gz
+            dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-amd64.tar.gz
+            dist/jfvm-${{ steps.tag.outputs.tag }}-darwin-arm64.tar.gz
+            dist/jfvm-${{ steps.tag.outputs.tag }}-linux-amd64.tar.gz
+            dist/jfvm-${{ steps.tag.outputs.tag }}-linux-arm64.tar.gz
           token: ${{ secrets.GITHUB_TOKEN }}
           draft: false
           prerelease: false

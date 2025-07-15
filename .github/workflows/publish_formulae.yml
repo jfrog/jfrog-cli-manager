@@ -57,13 +57,29 @@ jobs:
           echo "Version: $VERSION"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           
-          # Download tar.gz and calculate SHA256
-          echo "Downloading tar.gz and calculating SHA256..."
-          TAR_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}.tar.gz"
+          # Download platform-specific tar.gz and calculate SHA256
+          echo "Downloading platform-specific tar.gz and calculating SHA256..."
+          
+          # Determine platform-specific URL
+          if [[ "$(uname)" == "Darwin" ]]; then
+            if [[ "$(uname -m)" == "arm64" ]]; then
+              PLATFORM="darwin-arm64"
+            else
+              PLATFORM="darwin-amd64"
+            fi
+          else
+            if [[ "$(uname -m)" == "aarch64" ]]; then
+              PLATFORM="linux-arm64"
+            else
+              PLATFORM="linux-amd64"
+            fi
+          fi
+          
+          TAR_URL="https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-${PLATFORM}.tar.gz"
           echo "Downloading from: $TAR_URL"
           
-          if curl -L -f -o "jfvm-${TAG}.tar.gz" "$TAR_URL"; then
-            SHA256=$(sha256sum "jfvm-${TAG}.tar.gz" | cut -d' ' -f1)
+          if curl -L -f -o "jfvm-${TAG}-${PLATFORM}.tar.gz" "$TAR_URL"; then
+            SHA256=$(sha256sum "jfvm-${TAG}-${PLATFORM}.tar.gz" | cut -d' ' -f1)
             echo "Tar.gz SHA256: $SHA256"
             echo "sha256=$SHA256" >> $GITHUB_OUTPUT
           else
@@ -71,7 +87,7 @@ jobs:
             exit 1
           fi
           
-          # Generate the formula using tar.gz
+          # Generate the formula using platform-specific tar.gz
           echo "Generating jfvm.rb formula..."
           cat > jfvm.rb << EOF
           class Jfvm < Formula
@@ -79,11 +95,26 @@ jobs:
             homepage "https://github.com/${{ github.repository }}"
             version "${VERSION}"
             
-            url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}.tar.gz"
-            sha256 "${SHA256}"
+            if OS.mac?
+              if Hardware::CPU.arm?
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-arm64.tar.gz"
+                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-arm64.tar.gz" | sha256sum | cut -d' ' -f1)"
+              else
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-amd64.tar.gz"
+                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-darwin-amd64.tar.gz" | sha256sum | cut -d' ' -f1)"
+              end
+            elsif OS.linux?
+              if Hardware::CPU.arm?
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-arm64.tar.gz"
+                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-arm64.tar.gz" | sha256sum | cut -d' ' -f1)"
+              else
+                url "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-amd64.tar.gz"
+                sha256 "$(curl -sL "https://github.com/${{ github.repository }}/releases/download/${TAG}/jfvm-${TAG}-linux-amd64.tar.gz" | sha256sum | cut -d' ' -f1)"
+              end
+            end
             
             def install
-              bin.install "jfvm-#{OS.mac? ? 'darwin' : 'linux'}-#{Hardware::CPU.arm? ? 'arm64' : 'amd64'}" => "jfvm"
+              bin.install "jfvm" => "jfvm"
             end
             
             test do
