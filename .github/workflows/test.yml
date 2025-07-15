@@ -187,6 +187,9 @@ jobs:
             echo "Profile cleaned"
           fi
 
+          cat /Users/runner/.bash_profile
+          source ~/.bash_profile
+
           # Test using latest version
           jfvm use latest
           
