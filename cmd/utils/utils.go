@@ -135,7 +135,7 @@ func GetLatestVersion() (string, error) {
 	case http.StatusOK:
 		// Continue processing
 	case http.StatusForbidden:
-		return "", fmt.Errorf("GitHub API access forbidden (403). This may be due to rate limiting. Try again later or set GITHUB_TOKEN environment variable")
+		return "", fmt.Errorf("GitHub API access forbidden (403). This may be due to rate limiting or missing GITHUB_TOKEN. In CI environments, ensure GITHUB_TOKEN is set. Try again later or use a specific version instead of 'latest'")
 	case http.StatusNotFound:
 		return "", fmt.Errorf("GitHub API endpoint not found (404). Please check the repository URL")
 	case http.StatusTooManyRequests:

@@ -190,8 +190,8 @@ jobs:
           cat /Users/runner/.bash_profile
           source ~/.bash_profile
 
-          # Test using latest version
-          jfvm use latest
+          # Test using a specific version instead of latest to avoid API issues
+          jfvm use 2.77.0
 
           cat /Users/runner/.bash_profile
           source ~/.bash_profile
