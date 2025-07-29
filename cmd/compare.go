@@ -337,13 +337,13 @@ func displayUnifiedDiff(output1, output2, version1, version2 string, noColor boo
 		switch change.changeType {
 		case "removed":
 			if !noColor {
-				fmt.Printf("%s %s\n", redColor.Sprint("-"), change.text)
+				fmt.Printf("%s\n", redColor.Sprintf("- %s", change.text))
 			} else {
 				fmt.Printf("- %s\n", change.text)
 			}
 		case "added":
 			if !noColor {
-				fmt.Printf("%s %s\n", greenColor.Sprint("+"), change.text)
+				fmt.Printf("%s\n", greenColor.Sprintf("+ %s", change.text))
 			} else {
 				fmt.Printf("+ %s\n", change.text)
 			}
