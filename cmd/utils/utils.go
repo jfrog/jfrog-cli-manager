@@ -288,38 +288,74 @@ if [ ! -f "$BINARY_PATH" ]; then
     exit 1
 fi
 
-# Skip history recording if disabled or in debug mode
-if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
-    exec "$BINARY_PATH" "$@"
-fi
-
-# Record command execution in history (lightweight)
-START_TIME=$(date +%s)
-
-# Execute the binary and capture output
-OUTPUT=$("$BINARY_PATH" "$@" 2>&1)
-EXIT_CODE=$?
-END_TIME=$(date +%s)
-DURATION=$((END_TIME - START_TIME))
-
-# Record history asynchronously to avoid blocking
-# Try to find the jfvm binary in the current directory first, then fallback to PATH
-JFVM_BINARY=""
-if [ -x "./jfvm" ]; then
-    JFVM_BINARY="./jfvm"
-elif [ -x "$(dirname "$0")/../jfvm" ]; then
-    JFVM_BINARY="$(dirname "$0")/../jfvm"
+# Check if this is an interactive command (stdin is a terminal)
+if [ -t 0 ]; then
+    # Interactive mode - use exec to preserve stdin/stdout/stderr
+    # This ensures interactive prompts work correctly
+    if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
+        exec "$BINARY_PATH" "$@"
+    else
+        # For interactive commands, we can't easily capture output
+        # So we'll just record the command execution without output
+        START_TIME=$(date +%s)
+        
+        # Execute the command and capture exit code
+        "$BINARY_PATH" "$@"
+        EXIT_CODE=$?
+        
+        END_TIME=$(date +%s)
+        DURATION=$((END_TIME - START_TIME))
+        
+        # Record history asynchronously (without output for interactive commands)
+        JFVM_BINARY=""
+        if [ -x "./jfvm" ]; then
+            JFVM_BINARY="./jfvm"
+        elif [ -x "$(dirname "$0")/../jfvm" ]; then
+            JFVM_BINARY="$(dirname "$0")/../jfvm"
+        else
+            JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
+        fi
+        
+        if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
+            ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "[interactive command]" >/dev/null 2>&1) &
+        fi
+        
+        exit $EXIT_CODE
+    fi
 else
-    JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
-fi
+    # Non-interactive mode - capture output for history
+    if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
+        exec "$BINARY_PATH" "$@"
+    fi
 
-if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
-    ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "$OUTPUT" >/dev/null 2>&1) &
-fi
+    # Record command execution in history (lightweight)
+    START_TIME=$(date +%s)
 
-# Output the result immediately
-echo "$OUTPUT"
-exit $EXIT_CODE
+    # Execute the binary and capture output
+    OUTPUT=$("$BINARY_PATH" "$@" 2>&1)
+    EXIT_CODE=$?
+    END_TIME=$(date +%s)
+    DURATION=$((END_TIME - START_TIME))
+
+    # Record history asynchronously to avoid blocking
+    # Try to find the jfvm binary in the current directory first, then fallback to PATH
+    JFVM_BINARY=""
+    if [ -x "./jfvm" ]; then
+        JFVM_BINARY="./jfvm"
+    elif [ -x "$(dirname "$0")/../jfvm" ]; then
+        JFVM_BINARY="$(dirname "$0")/../jfvm"
+    else
+        JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
+    fi
+
+    if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
+        ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "$OUTPUT" >/dev/null 2>&1) &
+    fi
+
+    # Output the result immediately
+    echo "$OUTPUT"
+    exit $EXIT_CODE
+fi
 `
 }
 
