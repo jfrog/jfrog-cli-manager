@@ -58,13 +58,17 @@ jobs:
 
       - name: Generate Homebrew formula
         run: |
+          # Remove 'v' prefix from tag for version
+          VERSION="${{ steps.tag.outputs.tag }}"
+          VERSION_NO_V="${VERSION#v}"
+
           cat <<EOF > jfvm.rb
           class Jfvm < Formula
             desc "Manage multiple versions of JFrog CLI"
             homepage "https://github.com/${{ github.repository }}"
             url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
             sha256 "${{ steps.sha.outputs.sha }}"
-            version "${{{ steps.tag.outputs.tag }}#v}"
+            version "${VERSION_NO_V}"
 
             def install
               bin.install "jfvm"
