@@ -321,18 +321,17 @@ func displayTableComparison(output1, output2, version1, version2 string, noColor
 		cyanColor   = color.New(color.FgCyan, color.Bold)
 	)
 
-	// Create clean table header
-	fmt.Printf("┌─────┬─────────────────────────────────────────┬─────────────────────────────────────────┬────────┐\n")
-	headerLine := fmt.Sprintf("│ %-3s │ %-39s │ %-39s │ %-6s │", "Line", version1, version2, "Status")
+	// Create clean table header - removed Status column, optimized width
+	fmt.Printf("┌─────┬──────────────────────────────────────────────────┬──────────────────────────────────────────────────┐\n")
+	headerLine := fmt.Sprintf("│ %-3s │ %-48s │ %-48s │", "Line", version1, version2)
 	if !noColor {
-		headerLine = fmt.Sprintf("│ %s │ %s │ %s │ %s │",
+		headerLine = fmt.Sprintf("│ %s │ %s │ %s │",
 			cyanColor.Sprintf("%-3s", "Line"),
-			cyanColor.Sprintf("%-39s", version1),
-			cyanColor.Sprintf("%-39s", version2),
-			cyanColor.Sprintf("%-6s", "Status"))
+			cyanColor.Sprintf("%-48s", version1),
+			cyanColor.Sprintf("%-48s", version2))
 	}
 	fmt.Println(headerLine)
-	fmt.Printf("├─────┼─────────────────────────────────────────┼─────────────────────────────────────────┼────────┤\n")
+	fmt.Printf("├─────┼──────────────────────────────────────────────────┼──────────────────────────────────────────────────┤\n")
 
 	maxLines := len(lines1)
 	if len(lines2) > maxLines {
@@ -355,60 +354,59 @@ func displayTableComparison(output1, output2, version1, version2 string, noColor
 			continue
 		}
 
-		// Limit line length for readability
-		if len(line1) > 39 {
-			line1 = line1[:36] + "..."
+		// Increased line length for better readability - show more text
+		if len(line1) > 48 {
+			line1 = line1[:45] + "..."
 		}
-		if len(line2) > 39 {
-			line2 = line2[:36] + "..."
+		if len(line2) > 48 {
+			line2 = line2[:45] + "..."
 		}
 
 		lineNum := fmt.Sprintf("%d", i+1)
-		status := ""
 
-		// Create table row with proper formatting
+		// Create table row - removed status column
 		if line1 == line2 {
-			status = "="
-			fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, line2, status)
+			// Same lines - no special coloring needed
+			fmt.Printf("│ %-3s │ %-48s │ %-48s │\n", lineNum, line1, line2)
 		} else if line1 != "" && line2 == "" {
-			status = "❌"
+			// Removed line - red
 			if !noColor {
-				fmt.Printf("│ %-3s │ %s │ %-39s │ %s │\n",
+				fmt.Printf("│ %-3s │ %s │ %-48s │\n",
 					lineNum,
-					redColor.Sprintf("%-39s", line1),
-					"",
-					redColor.Sprintf("%-6s", status))
+					redColor.Sprintf("%-48s", line1),
+					"")
 			} else {
-				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, "", status)
+				fmt.Printf("│ %-3s │ %-48s │ %-48s │\n", lineNum, line1, "")
 			}
 		} else if line1 == "" && line2 != "" {
-			status = "➕"
+			// Added line - green
 			if !noColor {
-				fmt.Printf("│ %-3s │ %-39s │ %s │ %s │\n",
+				fmt.Printf("│ %-3s │ %-48s │ %s │\n",
 					lineNum,
 					"",
-					greenColor.Sprintf("%-39s", line2),
-					greenColor.Sprintf("%-6s", status))
+					greenColor.Sprintf("%-48s", line2))
 			} else {
-				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, "", line2, status)
+				fmt.Printf("│ %-3s │ %-48s │ %-48s │\n", lineNum, "", line2)
 			}
 		} else {
-			status = "🔄"
+			// Modified line - yellow
 			if !noColor {
-				fmt.Printf("│ %-3s │ %s │ %s │ %s │\n",
+				fmt.Printf("│ %-3s │ %s │ %s │\n",
 					lineNum,
-					yellowColor.Sprintf("%-39s", line1),
-					yellowColor.Sprintf("%-39s", line2),
-					yellowColor.Sprintf("%-6s", status))
+					yellowColor.Sprintf("%-48s", line1),
+					yellowColor.Sprintf("%-48s", line2))
 			} else {
-				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, line2, status)
+				fmt.Printf("│ %-3s │ %-48s │ %-48s │\n", lineNum, line1, line2)
 			}
 		}
 	}
 
-	// Table footer
-	fmt.Printf("└─────┴─────────────────────────────────────────┴─────────────────────────────────────────┴────────┘\n")
+	// Table footer - adjusted for 3 columns with 48-char width
+	fmt.Printf("└─────┴──────────────────────────────────────────────────┴──────────────────────────────────────────────────┘\n")
 
-	// Legend
-	fmt.Printf("\n📋 Legend: = Same │ ➕ Added │ ❌ Removed │ 🔄 Modified\n")
+	// Simplified legend - colors speak for themselves
+	fmt.Printf("\n📋 Legend: %s Added │ %s Removed │ %s Modified │ Normal = Same\n",
+		greenColor.Sprint("Green"),
+		redColor.Sprint("Red"),
+		yellowColor.Sprint("Yellow"))
 }
