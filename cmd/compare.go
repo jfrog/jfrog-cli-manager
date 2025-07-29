@@ -13,7 +13,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
 	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
-	"github.com/sergi/go-diff/diffmatchpatch"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 )
@@ -277,37 +276,111 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 }
 
 func displayUnifiedDiff(output1, output2, version1, version2 string, noColor bool) {
-	dmp := diffmatchpatch.New()
-	diffs := dmp.DiffMain(output1, output2, false)
+	lines1 := strings.Split(output1, "\n")
+	lines2 := strings.Split(output2, "\n")
 
 	var (
 		redColor   = color.New(color.FgRed)
 		greenColor = color.New(color.FgGreen)
+		cyanColor  = color.New(color.FgCyan, color.Bold)
 	)
 
+	// Header
 	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
-	fmt.Printf("%s %s\n", redColor.Sprint("---"), version1)
-	fmt.Printf("%s %s\n", greenColor.Sprint("+++"), version2)
+	if !noColor {
+		fmt.Printf("%s %s\n", redColor.Sprint("---"), cyanColor.Sprint(version1))
+		fmt.Printf("%s %s\n", greenColor.Sprint("+++"), cyanColor.Sprint(version2))
+	} else {
+		fmt.Printf("--- %s\n", version1)
+		fmt.Printf("+++ %s\n", version2)
+	}
 	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
 
-	for _, diff := range diffs {
-		switch diff.Type {
-		case diffmatchpatch.DiffDelete:
-			if noColor {
-				fmt.Printf("- %s", diff.Text)
-			} else {
-				redColor.Printf("- %s", diff.Text)
+	// Create a simple line-based diff
+	maxLines := len(lines1)
+	if len(lines2) > maxLines {
+		maxLines = len(lines2)
+	}
+
+	// Track context for cleaner output
+	contextSize := 3
+	changes := []diffChange{}
+
+	// Identify all changes first
+	for i := 0; i < maxLines; i++ {
+		line1 := ""
+		line2 := ""
+
+		if i < len(lines1) {
+			line1 = strings.TrimSpace(lines1[i])
+		}
+		if i < len(lines2) {
+			line2 = strings.TrimSpace(lines2[i])
+		}
+
+		if line1 != line2 {
+			if line1 != "" && line2 == "" {
+				changes = append(changes, diffChange{lineNum: i + 1, changeType: "removed", text: line1})
+			} else if line1 == "" && line2 != "" {
+				changes = append(changes, diffChange{lineNum: i + 1, changeType: "added", text: line2})
+			} else if line1 != "" && line2 != "" {
+				changes = append(changes, diffChange{lineNum: i + 1, changeType: "removed", text: line1})
+				changes = append(changes, diffChange{lineNum: i + 1, changeType: "added", text: line2})
 			}
-		case diffmatchpatch.DiffInsert:
-			if noColor {
-				fmt.Printf("+ %s", diff.Text)
-			} else {
-				greenColor.Printf("+ %s", diff.Text)
-			}
-		case diffmatchpatch.DiffEqual:
-			fmt.Printf("  %s", diff.Text)
+		} else if line1 != "" {
+			changes = append(changes, diffChange{lineNum: i + 1, changeType: "context", text: line1})
 		}
 	}
+
+	// Display changes with context
+	for i, change := range changes {
+		switch change.changeType {
+		case "removed":
+			if !noColor {
+				fmt.Printf("%s %s\n", redColor.Sprint("-"), change.text)
+			} else {
+				fmt.Printf("- %s\n", change.text)
+			}
+		case "added":
+			if !noColor {
+				fmt.Printf("%s %s\n", greenColor.Sprint("+"), change.text)
+			} else {
+				fmt.Printf("+ %s\n", change.text)
+			}
+		case "context":
+			// Only show context lines near changes
+			showContext := false
+			for j := max(0, i-contextSize); j <= min(len(changes)-1, i+contextSize); j++ {
+				if changes[j].changeType != "context" {
+					showContext = true
+					break
+				}
+			}
+			if showContext {
+				fmt.Printf("  %s\n", change.text)
+			}
+		}
+	}
+}
+
+type diffChange struct {
+	lineNum    int
+	changeType string // "added", "removed", "context"
+	text       string
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 func displayTableComparison(output1, output2, version1, version2 string, noColor bool) {
