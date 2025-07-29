@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fatih/color"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
 	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
 	"github.com/urfave/cli/v2"
@@ -97,7 +97,7 @@ type BenchmarkConfig struct {
 
 func parseArguments(args []string) (versions []string, jfCommand []string, err error) {
 	if len(args) < 2 {
-		return nil, nil, cli.Exit("Usage: jfvm benchmark <version1,version2,...> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("Usage: jfvm benchmark [flags] <version1,version2,...> -- <jf-command> [args...]", 1)
 	}
 
 	// Find the separator "--"
@@ -110,11 +110,19 @@ func parseArguments(args []string) (versions []string, jfCommand []string, err e
 	}
 
 	if separatorIndex == -1 {
-		return nil, nil, cli.Exit("Missing '--' separator. Usage: jfvm benchmark <versions> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("Missing '--' separator. Usage: jfvm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
 	}
 
 	if separatorIndex == 0 {
-		return nil, nil, cli.Exit("No versions specified. Usage: jfvm benchmark <versions> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("No versions specified. Usage: jfvm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
+	}
+
+	// Check for flags placed after the versions but before "--"
+	for i := 1; i < separatorIndex; i++ {
+		if strings.HasPrefix(args[i], "--") {
+			return nil, nil, cli.Exit(fmt.Sprintf("❌ Flag '%s' detected after versions. Please place all flags before versions.\nCorrect usage: jfvm benchmark --iterations 3 %s -- %s",
+				args[i], args[0], strings.Join(args[separatorIndex+1:], " ")), 1)
+		}
 	}
 
 	versionsStr := args[0]
@@ -219,103 +227,238 @@ func runBenchmark(ctx context.Context, version string, jfCommand []string, itera
 }
 
 func displayBenchmarkResults(results []BenchmarkResult, format string, noColor, detailed bool) {
-	if noColor {
-		color.NoColor = true
-	}
-
-	var (
-		greenColor  = color.New(color.FgGreen, color.Bold)
-		redColor    = color.New(color.FgRed, color.Bold)
-		blueColor   = color.New(color.FgBlue, color.Bold)
-		yellowColor = color.New(color.FgYellow, color.Bold)
-	)
-
 	switch format {
 	case "json":
 		displayBenchmarkJSON(results)
 	case "csv":
 		displayBenchmarkCSV(results)
 	default:
-		displayBenchmarkTable(results, greenColor, redColor, blueColor, yellowColor, detailed)
+		displayEnhancedBenchmarkResults(results, noColor, detailed)
 	}
 }
 
-func displayBenchmarkTable(results []BenchmarkResult, greenColor, redColor, blueColor, yellowColor *color.Color, detailed bool) {
-	fmt.Printf("📊 BENCHMARK RESULTS\n")
-	fmt.Printf("═══════════════════════════════════════════════════════════════════════════════════\n\n")
+func displayEnhancedBenchmarkResults(results []BenchmarkResult, noColor, detailed bool) {
+	// JFrog brand colors
+	var (
+		jfrogGreen  = lipgloss.Color("#43C74A")
+		jfrogOrange = lipgloss.Color("#FF6B35")
+		jfrogBlue   = lipgloss.Color("#0052CC")
+		mutedGray   = lipgloss.Color("#6B7280")
+	)
 
-	// Sort by average time
+	// Define beautiful styles using JFrog colors
+	var (
+		titleStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(jfrogGreen).
+				Padding(0, 2).
+				MarginBottom(1)
+
+		cardStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(jfrogBlue).
+				Padding(1, 2).
+				MarginBottom(1).
+				MarginRight(2)
+
+		winnerCardStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(jfrogGreen).
+				Padding(1, 2).
+				MarginBottom(1).
+				MarginRight(2)
+
+		summaryStyle = lipgloss.NewStyle().
+				Border(lipgloss.RoundedBorder()).
+				BorderForeground(jfrogBlue).
+				Padding(1, 2).
+				MarginTop(1)
+	)
+
+	// Handle no-color mode
+	if noColor {
+		titleStyle = titleStyle.Foreground(lipgloss.Color(""))
+		cardStyle = cardStyle.BorderForeground(lipgloss.Color(""))
+		winnerCardStyle = winnerCardStyle.BorderForeground(lipgloss.Color(""))
+		summaryStyle = summaryStyle.BorderForeground(lipgloss.Color(""))
+		jfrogGreen = lipgloss.Color("")
+		jfrogOrange = lipgloss.Color("")
+		jfrogBlue = lipgloss.Color("")
+		mutedGray = lipgloss.Color("")
+	}
+
+	// Sort by average time (fastest first)
 	sort.Slice(results, func(i, j int) bool {
 		return results[i].AverageTime < results[j].AverageTime
 	})
 
-	fmt.Printf("%-15s %-12s %-12s %-12s %-12s %-10s\n",
-		"VERSION", "AVG TIME", "MIN TIME", "MAX TIME", "TOTAL TIME", "SUCCESS")
-	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
+	// Display title
+	fmt.Println(titleStyle.Render("🏁 JFROG CLI BENCHMARK RESULTS"))
 
+	// Create performance cards
+	var cards []string
 	fastest := results[0].AverageTime
 
 	for i, result := range results {
-		var versionColor *color.Color
+		style := cardStyle
 		if i == 0 {
-			versionColor = greenColor
-		} else if i == len(results)-1 {
-			versionColor = redColor
-		} else {
-			versionColor = blueColor
+			style = winnerCardStyle
 		}
 
-		speedup := float64(result.AverageTime) / float64(fastest)
-		successColor := greenColor
+		// Version header with performance badge
+		versionHeader := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#E5E7EB")).Render(result.Version)
+		if i == 0 {
+			badge := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(jfrogGreen).
+				Padding(0, 1).
+				MarginLeft(1).
+				Render("🏆 FASTEST")
+			versionHeader += badge
+		} else {
+			speedup := float64(result.AverageTime) / float64(fastest)
+			badge := lipgloss.NewStyle().
+				Bold(true).
+				Foreground(lipgloss.Color("#FFFFFF")).
+				Background(jfrogBlue).
+				Padding(0, 1).
+				MarginLeft(1).
+				Render(fmt.Sprintf("%.1fx slower", speedup))
+			versionHeader += badge
+		}
+
+		// Performance metrics with better contrast
+		metrics := fmt.Sprintf(
+			"⚡ Avg: %s\n"+
+				"🏃 Min: %s\n"+
+				"🐌 Max: %s\n"+
+				"⏱️  Total: %s",
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#E5E7EB")).Bold(true).Render(formatDuration(result.AverageTime)),
+			lipgloss.NewStyle().Foreground(jfrogGreen).Bold(true).Render(formatDuration(result.MinTime)),
+			lipgloss.NewStyle().Foreground(jfrogOrange).Bold(true).Render(formatDuration(result.MaxTime)),
+			lipgloss.NewStyle().Foreground(lipgloss.Color("#F3F4F6")).Render(formatDuration(result.TotalTime)),
+		)
+
+		// Success rate with visual indicator
+		successColor := jfrogGreen
+		successIcon := "✅"
 		if result.SuccessRate < 100 {
-			successColor = yellowColor
+			successColor = jfrogOrange
+			successIcon = "⚠️"
 		}
 		if result.SuccessRate < 80 {
-			successColor = redColor
+			successColor = lipgloss.Color("#EF4444")
+			successIcon = "❌"
 		}
 
-		fmt.Printf("%-15s %-12s %-12s %-12s %-12s %s\n",
-			versionColor.Sprint(result.Version),
-			formatDuration(result.AverageTime),
-			formatDuration(result.MinTime),
-			formatDuration(result.MaxTime),
-			formatDuration(result.TotalTime),
-			successColor.Sprintf("%.1f%%", result.SuccessRate))
+		successRate := fmt.Sprintf("%s Success: %s",
+			successIcon,
+			lipgloss.NewStyle().Foreground(successColor).Bold(true).Render(fmt.Sprintf("%.1f%%", result.SuccessRate)))
 
-		if i > 0 {
-			fmt.Printf("%-15s %s\n", "", yellowColor.Sprintf("↳ %.2fx slower", speedup))
-		}
+		// Iterations info
+		iterationsInfo := lipgloss.NewStyle().Foreground(mutedGray).Italic(true).
+			Render(fmt.Sprintf("📊 %d iterations", result.Iterations))
+
+		cardContent := versionHeader + "\n\n" + metrics + "\n" + successRate + "\n" + iterationsInfo
+		card := style.Width(28).Render(cardContent)
+		cards = append(cards, card)
 	}
 
-	fmt.Printf("\n🏆 Performance Summary:\n")
-	fmt.Printf("   Fastest: %s (%s avg)\n",
-		greenColor.Sprint(results[0].Version),
-		formatDuration(results[0].AverageTime))
+	// Display cards in rows (max 3 per row)
+	cardsPerRow := 3
+	for i := 0; i < len(cards); i += cardsPerRow {
+		end := i + cardsPerRow
+		if end > len(cards) {
+			end = len(cards)
+		}
+		row := lipgloss.JoinHorizontal(lipgloss.Top, cards[i:end]...)
+		fmt.Println(row)
+	}
+
+	// Performance summary
+	summaryContent := createBenchmarkSummary(results, jfrogGreen, jfrogOrange, jfrogBlue, mutedGray, fastest)
+	fmt.Println(summaryStyle.Width(90).Render(summaryContent))
+
+	// Detailed execution logs if requested
+	if detailed {
+		fmt.Println()
+		displayDetailedBenchmarkLogs(results, jfrogGreen, jfrogOrange, jfrogBlue)
+	}
+}
+
+func createBenchmarkSummary(results []BenchmarkResult, jfrogGreen, jfrogOrange, jfrogBlue, mutedGray lipgloss.Color, fastest time.Duration) string {
+	header := lipgloss.NewStyle().Bold(true).Foreground(jfrogBlue).Render("📈 PERFORMANCE SUMMARY")
+
+	content := header + "\n\n"
+
+	// Winner info
+	winner := results[0]
+	content += fmt.Sprintf("🏆 Fastest Version: %s (%s average)\n",
+		lipgloss.NewStyle().Foreground(jfrogGreen).Bold(true).Render(winner.Version),
+		lipgloss.NewStyle().Foreground(jfrogGreen).Render(formatDuration(winner.AverageTime)))
 
 	if len(results) > 1 {
 		slowest := results[len(results)-1]
 		speedDiff := float64(slowest.AverageTime) / float64(fastest)
-		fmt.Printf("   Slowest: %s (%s avg, %.2fx slower)\n",
-			redColor.Sprint(slowest.Version),
-			formatDuration(slowest.AverageTime),
+		content += fmt.Sprintf("🐌 Slowest Version: %s (%s average, %.1fx slower)\n",
+			lipgloss.NewStyle().Foreground(jfrogBlue).Bold(true).Render(slowest.Version),
+			lipgloss.NewStyle().Foreground(jfrogBlue).Render(formatDuration(slowest.AverageTime)),
 			speedDiff)
 	}
 
-	if detailed {
-		fmt.Printf("\n📝 Detailed Execution Log:\n")
-		for _, result := range results {
-			fmt.Printf("\n%s:\n", blueColor.Sprint(result.Version))
-			for i, exec := range result.Executions {
-				status := greenColor.Sprint("✓")
-				if exec.ExitCode != 0 {
-					status = redColor.Sprint("✗")
-				}
-				fmt.Printf("  #%d: %s %s", i+1, status, formatDuration(exec.Duration))
-				if exec.ExitCode != 0 {
-					fmt.Printf(" (exit %d)", exec.ExitCode)
-				}
-				fmt.Printf("\n")
+	// Overall stats
+	totalTime := time.Duration(0)
+	totalIterations := 0
+	for _, result := range results {
+		totalTime += result.TotalTime
+		totalIterations += result.Iterations
+	}
+
+	content += fmt.Sprintf("\n%s\n",
+		lipgloss.NewStyle().Foreground(mutedGray).Render(
+			fmt.Sprintf("📊 Total: %d versions tested • %d total iterations • %s combined time",
+				len(results), totalIterations, formatDuration(totalTime))))
+
+	return content
+}
+
+func displayDetailedBenchmarkLogs(results []BenchmarkResult, jfrogGreen, jfrogOrange, jfrogBlue lipgloss.Color) {
+	titleStyle := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("#FFFFFF")).
+		Background(jfrogBlue).
+		Padding(0, 1).
+		MarginBottom(1)
+
+	fmt.Println(titleStyle.Render("📝 DETAILED EXECUTION LOGS"))
+
+	for _, result := range results {
+		versionHeader := lipgloss.NewStyle().
+			Bold(true).
+			Foreground(jfrogBlue).
+			Render(fmt.Sprintf("\n🔸 %s:", result.Version))
+
+		fmt.Println(versionHeader)
+
+		for i, exec := range result.Executions {
+			status := "✅"
+			statusColor := jfrogGreen
+			if exec.ExitCode != 0 {
+				status = "❌"
+				statusColor = jfrogOrange
 			}
+
+			line := fmt.Sprintf("  #%d: %s %s",
+				i+1,
+				lipgloss.NewStyle().Foreground(statusColor).Render(status),
+				formatDuration(exec.Duration))
+
+			if exec.ExitCode != 0 {
+				line += lipgloss.NewStyle().Foreground(jfrogOrange).Render(fmt.Sprintf(" (exit %d)", exec.ExitCode))
+			}
+
+			fmt.Println(line)
 		}
 	}
 }
