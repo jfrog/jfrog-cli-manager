@@ -58,7 +58,7 @@ var Compare = &cli.Command{
 	Action: func(c *cli.Context) error {
 		args := c.Args().Slice()
 		if len(args) < 3 {
-			return cli.Exit("Usage: jfvm compare <version1> <version2> -- <jf-command> [args...]", 1)
+			return cli.Exit("Usage: jfrog-cli-vm compare <version1> <version2> -- <jf-command> [args...]", 1)
 		}
 
 		// Find the separator "--"
@@ -71,7 +71,7 @@ var Compare = &cli.Command{
 		}
 
 		if separatorIndex == -1 || separatorIndex != 2 {
-			return cli.Exit("Missing '--' separator. Usage: jfvm compare <version1> <version2> -- <jf-command> [args...]", 1)
+			return cli.Exit("Missing '--' separator. Usage: jfrog-cli-vm compare <version1> <version2> -- <jf-command> [args...]", 1)
 		}
 
 		version1 := args[0]
@@ -185,9 +185,10 @@ func executeJFCommand(ctx context.Context, version string, jfCommand []string) (
 func displayComparison(result1, result2 ExecutionResult, unified, noColor, showTiming bool) {
 	// Setup colors
 	var (
-		redColor   = color.New(color.FgRed)
-		greenColor = color.New(color.FgGreen)
-		blueColor  = color.New(color.FgBlue)
+		redColor    = color.New(color.FgRed)
+		greenColor  = color.New(color.FgGreen)
+		blueColor   = color.New(color.FgBlue)
+		yellowColor = color.New(color.FgYellow)
 	)
 
 	if noColor {
@@ -204,6 +205,15 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 		fmt.Printf("⏱️  EXECUTION TIMING:\n")
 		fmt.Printf("   Version %s: %v\n", blueColor.Sprint(result1.Version), result1.Duration)
 		fmt.Printf("   Version %s: %v\n", blueColor.Sprint(result2.Version), result2.Duration)
+
+		// Add performance comparison
+		if result1.Duration > result2.Duration*2 {
+			fmt.Printf("   Performance: %s is significantly slower\n", yellowColor.Sprint(result1.Version))
+		} else if result2.Duration > result1.Duration*2 {
+			fmt.Printf("   Performance: %s is significantly slower\n", yellowColor.Sprint(result2.Version))
+		} else if result1.Duration != result2.Duration {
+			fmt.Printf("   Performance: Similar execution times\n")
+		}
 		fmt.Printf("\n")
 	}
 
@@ -243,9 +253,12 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 	// Even if their stdout happens to be the same, they represent different execution results
 	if output1 == output2 && result1.ExitCode == result2.ExitCode && result1.ErrorMsg == result2.ErrorMsg {
 		fmt.Printf("✅ OUTPUTS ARE IDENTICAL\n")
-		fmt.Printf("📄 Output (%d lines):\n", len(strings.Split(output1, "\n")))
-		fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
-		fmt.Printf("%s\n", output1)
+		if output1 != "" {
+			lineCount := len(strings.Split(output1, "\n"))
+			fmt.Printf("📄 Output (%d lines):\n", lineCount)
+			fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
+			fmt.Printf("%s\n", output1)
+		}
 		return
 	}
 
@@ -254,7 +267,7 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 	if unified {
 		displayUnifiedDiff(output1, output2, result1.Version, result2.Version, noColor)
 	} else {
-		displaySideBySideDiff(output1, output2, result1.Version, result2.Version, noColor)
+		displaySideBySideClean(output1, output2, result1.Version, result2.Version, noColor)
 	}
 }
 
@@ -292,7 +305,7 @@ func displayUnifiedDiff(output1, output2, version1, version2 string, noColor boo
 	}
 }
 
-func displaySideBySideDiff(output1, output2, version1, version2 string, noColor bool) {
+func displaySideBySideClean(output1, output2, version1, version2 string, noColor bool) {
 	lines1 := strings.Split(output1, "\n")
 	lines2 := strings.Split(output2, "\n")
 
@@ -323,12 +336,12 @@ func displaySideBySideDiff(output1, output2, version1, version2 string, noColor 
 			line2 = lines2[i]
 		}
 
-		// Truncate long lines for display
-		if len(line1) > 38 {
-			line1 = line1[:35] + "..."
+		// More generous truncation - only for very long lines (80 chars instead of 35)
+		if len(line1) > 78 {
+			line1 = line1[:75] + "..."
 		}
-		if len(line2) > 38 {
-			line2 = line2[:35] + "..."
+		if len(line2) > 78 {
+			line2 = line2[:75] + "..."
 		}
 
 		marker1 := " "
