@@ -40,6 +40,11 @@ var Compare = &cli.Command{
 			Value: false,
 		},
 		&cli.BoolFlag{
+			Name:  "table",
+			Usage: "Show clean table format (default)",
+			Value: true,
+		},
+		&cli.BoolFlag{
 			Name:  "no-color",
 			Usage: "Disable colored output",
 			Value: false,
@@ -267,7 +272,7 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 	if unified {
 		displayUnifiedDiff(output1, output2, result1.Version, result2.Version, noColor)
 	} else {
-		displaySideBySideClean(output1, output2, result1.Version, result2.Version, noColor)
+		displayTableComparison(output1, output2, result1.Version, result2.Version, noColor)
 	}
 }
 
@@ -305,69 +310,105 @@ func displayUnifiedDiff(output1, output2, version1, version2 string, noColor boo
 	}
 }
 
-func displaySideBySideClean(output1, output2, version1, version2 string, noColor bool) {
+func displayTableComparison(output1, output2, version1, version2 string, noColor bool) {
 	lines1 := strings.Split(output1, "\n")
 	lines2 := strings.Split(output2, "\n")
+
+	var (
+		greenColor  = color.New(color.FgGreen)
+		redColor    = color.New(color.FgRed)
+		yellowColor = color.New(color.FgYellow)
+		cyanColor   = color.New(color.FgCyan, color.Bold)
+	)
+
+	// Create clean table header
+	fmt.Printf("┌─────┬─────────────────────────────────────────┬─────────────────────────────────────────┬────────┐\n")
+	headerLine := fmt.Sprintf("│ %-3s │ %-39s │ %-39s │ %-6s │", "Line", version1, version2, "Status")
+	if !noColor {
+		headerLine = fmt.Sprintf("│ %s │ %s │ %s │ %s │",
+			cyanColor.Sprintf("%-3s", "Line"),
+			cyanColor.Sprintf("%-39s", version1),
+			cyanColor.Sprintf("%-39s", version2),
+			cyanColor.Sprintf("%-6s", "Status"))
+	}
+	fmt.Println(headerLine)
+	fmt.Printf("├─────┼─────────────────────────────────────────┼─────────────────────────────────────────┼────────┤\n")
 
 	maxLines := len(lines1)
 	if len(lines2) > maxLines {
 		maxLines = len(lines2)
 	}
 
-	var (
-		blueColor  = color.New(color.FgBlue)
-		redColor   = color.New(color.FgRed, color.Bold)
-		greenColor = color.New(color.FgGreen, color.Bold)
-	)
-
-	// Header
-	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
-	fmt.Printf("%-40s │ %-40s\n", blueColor.Sprintf("%s", version1), blueColor.Sprintf("%s", version2))
-	fmt.Printf("─────────────────────────────────────────────────────────────────────────────────────\n")
-
 	for i := 0; i < maxLines; i++ {
 		line1 := ""
 		line2 := ""
 
 		if i < len(lines1) {
-			line1 = lines1[i]
+			line1 = strings.TrimSpace(lines1[i])
 		}
 		if i < len(lines2) {
-			line2 = lines2[i]
+			line2 = strings.TrimSpace(lines2[i])
 		}
 
-		// More generous truncation - only for very long lines (80 chars instead of 35)
-		if len(line1) > 78 {
-			line1 = line1[:75] + "..."
-		}
-		if len(line2) > 78 {
-			line2 = line2[:75] + "..."
+		// Skip empty lines for both versions to reduce noise
+		if line1 == "" && line2 == "" {
+			continue
 		}
 
-		marker1 := " "
-		marker2 := " "
+		// Limit line length for readability
+		if len(line1) > 39 {
+			line1 = line1[:36] + "..."
+		}
+		if len(line2) > 39 {
+			line2 = line2[:36] + "..."
+		}
 
-		if line1 != line2 {
-			if line1 != "" && line2 == "" {
-				marker1 = "-"
-				if !noColor {
-					line1 = redColor.Sprint(line1)
-				}
-			} else if line1 == "" && line2 != "" {
-				marker2 = "+"
-				if !noColor {
-					line2 = greenColor.Sprint(line2)
-				}
+		lineNum := fmt.Sprintf("%d", i+1)
+		status := ""
+
+		// Create table row with proper formatting
+		if line1 == line2 {
+			status = "="
+			fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, line2, status)
+		} else if line1 != "" && line2 == "" {
+			status = "❌"
+			if !noColor {
+				fmt.Printf("│ %-3s │ %s │ %-39s │ %s │\n",
+					lineNum,
+					redColor.Sprintf("%-39s", line1),
+					"",
+					redColor.Sprintf("%-6s", status))
 			} else {
-				marker1 = "~"
-				marker2 = "~"
-				if !noColor {
-					line1 = redColor.Sprint(line1)
-					line2 = greenColor.Sprint(line2)
-				}
+				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, "", status)
+			}
+		} else if line1 == "" && line2 != "" {
+			status = "➕"
+			if !noColor {
+				fmt.Printf("│ %-3s │ %-39s │ %s │ %s │\n",
+					lineNum,
+					"",
+					greenColor.Sprintf("%-39s", line2),
+					greenColor.Sprintf("%-6s", status))
+			} else {
+				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, "", line2, status)
+			}
+		} else {
+			status = "🔄"
+			if !noColor {
+				fmt.Printf("│ %-3s │ %s │ %s │ %s │\n",
+					lineNum,
+					yellowColor.Sprintf("%-39s", line1),
+					yellowColor.Sprintf("%-39s", line2),
+					yellowColor.Sprintf("%-6s", status))
+			} else {
+				fmt.Printf("│ %-3s │ %-39s │ %-39s │ %-6s │\n", lineNum, line1, line2, status)
 			}
 		}
-
-		fmt.Printf("%s%-39s │ %s%-39s\n", marker1, line1, marker2, line2)
 	}
+
+	// Table footer
+	fmt.Printf("└─────┴─────────────────────────────────────────┴─────────────────────────────────────────┴────────┘\n")
+
+	// Legend
+	fmt.Printf("\n📋 Legend: = Same │ ➕ Added │ ❌ Removed │ 🔄 Modified\n")
 }
