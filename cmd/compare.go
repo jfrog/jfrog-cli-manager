@@ -156,19 +156,26 @@ func executeJFCommand(ctx context.Context, version string, jfCommand []string) (
 	err := cmd.Run()
 	result.Duration = time.Since(result.StartTime)
 
+	stdoutStr := stdout.String()
+	stderrStr := stderr.String()
+
 	if err != nil {
 		if exitError, ok := err.(*exec.ExitError); ok {
 			result.ExitCode = exitError.ExitCode()
 		} else {
 			result.ExitCode = 1
 		}
-		result.ErrorMsg = stderr.String()
+		result.ErrorMsg = stderrStr
+
+		// For failed commands, still capture stdout as output (help commands often write to stdout even on failure)
+		if stdoutStr != "" {
+			result.Output = stdoutStr
+		} else if stderrStr != "" {
+			result.Output = stderrStr
+		}
 	} else {
 		// When command succeeds, combine stdout and stderr for output comparison
 		// Many CLI tools write informational messages to stderr even on success
-		stdoutStr := stdout.String()
-		stderrStr := stderr.String()
-
 		if stdoutStr != "" && stderrStr != "" {
 			result.Output = stdoutStr + "\n" + stderrStr
 		} else if stdoutStr != "" {
@@ -176,11 +183,6 @@ func executeJFCommand(ctx context.Context, version string, jfCommand []string) (
 		} else {
 			result.Output = stderrStr
 		}
-	}
-
-	// Keep original stdout for cases where only stdout is needed
-	if result.ExitCode == 0 && result.Output == "" {
-		result.Output = stdout.String()
 	}
 
 	return result, nil
@@ -250,8 +252,16 @@ func displayComparison(result1, result2 ExecutionResult, unified, noColor, showT
 	}
 
 	// Compare outputs
+	// For failed commands, use ErrorMsg if Output is empty (help commands often write to stdout even on failure)
 	output1 := strings.TrimSpace(result1.Output)
+	if output1 == "" && result1.ErrorMsg != "" {
+		output1 = strings.TrimSpace(result1.ErrorMsg)
+	}
+
 	output2 := strings.TrimSpace(result2.Output)
+	if output2 == "" && result2.ErrorMsg != "" {
+		output2 = strings.TrimSpace(result2.ErrorMsg)
+	}
 
 	// Commands with different exit codes should never be considered identical
 	// Even if their stdout happens to be the same, they represent different execution results
