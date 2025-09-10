@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -66,6 +67,15 @@ func ResolveAlias(name string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+
+	var aliasData struct {
+		Version     string `json:"version"`
+		Description string `json:"description,omitempty"`
+	}
+	if err := json.Unmarshal(data, &aliasData); err == nil {
+		return strings.TrimSpace(aliasData.Version), nil
+	}
+
 	return strings.TrimSpace(string(data)), nil
 }
 

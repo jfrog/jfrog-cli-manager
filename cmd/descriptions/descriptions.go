@@ -108,12 +108,12 @@ var Clear = CommandDescription{
 }
 
 var Alias = CommandDescription{
-	Usage:       "Create or manage version aliases",
-	Description: "Defines an alias for a specific version, making it easier to reference commonly used versions.",
+	Usage:       "Create or manage version aliases with descriptions",
+	Description: "Defines an alias for a specific version with optional description, making it easier to identify and reference commonly used versions.",
 	Examples: []Example{
 		{
-			Command:     "jfvm alias dev 2.74.0",
-			Description: "Create alias 'dev' pointing to version 2.74.0",
+			Command:     "jfvm alias set --description \"Development environment version\" dev 2.74.0",
+			Description: "Create alias 'dev' with description pointing to version 2.74.0",
 		},
 		{
 			Command:     "jfvm alias prod 2.73.0",
