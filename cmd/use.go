@@ -35,6 +35,13 @@ var Use = &cli.Command{
 				version = latestVersion
 				fmt.Printf("Latest version: %s\n", version)
 
+				projectRequiredVersion, err := utils.GetVersionFromProjectFile()
+				if err == nil && projectRequiredVersion != "" && utils.IsVersionConstraint(projectRequiredVersion) {
+					if err := utils.ValidateVersionAgainstConstraint(version, projectRequiredVersion); err != nil {
+						return fmt.Errorf("latest version %s is not compatible with the required project cli version %s", version, projectRequiredVersion)
+					}
+				}
+
 				// Check if latest version is already installed
 				binPath := filepath.Join(utils.JfvmVersions, version, utils.BinaryName)
 				if _, err := os.Stat(binPath); os.IsNotExist(err) {
@@ -55,14 +62,35 @@ var Use = &cli.Command{
 					// don't log anything — just fallback silently
 					version = v
 				}
+				projectVersion, err := utils.GetVersionFromProjectFile()
+				if err == nil && projectVersion != "" && utils.IsVersionConstraint(projectVersion) {
+					if err := utils.ValidateVersionAgainstConstraint(version, projectVersion); err != nil {
+						return fmt.Errorf("version %s is not compatible with the required project cli version %s", version, projectVersion)
+					}
+				}
 			}
 		} else {
 			v, err := utils.GetVersionFromProjectFile()
 			if err != nil {
 				return cli.Exit("No version provided and no .jfrog-version file found", 1)
 			}
-			version = v
-			fmt.Printf("Using version from .jfrog-version: %s\n", version)
+
+			if utils.IsVersionConstraint(v) {
+				installedVersions, err := utils.GetInstalledVersions()
+				if err != nil {
+					return fmt.Errorf("failed to get installed cli versions: %v", err)
+				}
+
+				matchingVersion, err := utils.FindMatchingVersion(v, installedVersions)
+				if err != nil {
+					return fmt.Errorf("please install a cli version %s which is compatible with the project", v)
+				}
+
+				version = matchingVersion
+			} else {
+				version = v
+				fmt.Printf("Using version from .jfrog-version: %s\n", version)
+			}
 		}
 
 		// For non-latest versions, check if binary exists and install if needed
@@ -76,6 +104,10 @@ var Use = &cli.Command{
 					return fmt.Errorf("auto-install failed: %w", err)
 				}
 			}
+		}
+
+		if err := utils.ValidateVersionAgainstProject(version); err != nil {
+			return cli.Exit(fmt.Sprintf("%v", err), 1)
 		}
 
 		fmt.Printf("Writing selected version '%s' to config file: %s\n", version, utils.JfvmConfig)

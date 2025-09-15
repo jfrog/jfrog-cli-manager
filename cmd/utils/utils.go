@@ -680,3 +680,59 @@ func GetRunnerInfo() string {
 
 	return strings.Join(info, ", ")
 }
+
+func hasConstraint(s string) bool {
+	operators := []string{">=", ">", "<=", "<", "="}
+	s = strings.TrimSpace(s)
+	for _, op := range operators {
+		if strings.HasPrefix(s, op) {
+			return true
+		}
+	}
+	return false
+}
+
+func getProjectConstraint(c VersionConstraint) string {
+	switch c.Operator {
+	case ">=":
+		return fmt.Sprintf("greater than or equal to %s", c.Version)
+	case ">":
+		return fmt.Sprintf("greater than %s", c.Version)
+	case "<=":
+		return fmt.Sprintf("less than or equal to %s", c.Version)
+	case "<":
+		return fmt.Sprintf("less than %s", c.Version)
+	case "=":
+		return fmt.Sprintf("equal to %s", c.Version)
+	default:
+		return c.Constraint
+	}
+}
+
+func ValidateVersionAgainstProject(targetVersion string) error {
+	projectVersion, err := GetVersionFromProjectFile()
+	if err != nil || projectVersion == "" {
+		return nil
+	}
+
+	if !hasConstraint(projectVersion) {
+		return nil
+	}
+
+	constraint, err := ParseVersionConstraint(projectVersion)
+	if err != nil {
+		return fmt.Errorf("invalid cli version '%s' in .jfrog-version file: %v", projectVersion, err)
+	}
+
+	targetVer, err := ParseVersion(targetVersion)
+	if err != nil {
+		return fmt.Errorf("unable to parse version '%s', got error : %v", targetVersion, err)
+	}
+
+	if !constraint.Matches(targetVer) {
+		return fmt.Errorf("version %s is not compatible with project requirement %s. Please use a version %s",
+			targetVersion, projectVersion, getProjectConstraint(constraint))
+	}
+
+	return nil
+}
