@@ -20,10 +20,12 @@ var Use = &cli.Command{
 	Action: func(c *cli.Context) error {
 		fmt.Println("Executing 'jfvm use' command...")
 		var version string
+		versionExplicitlyProvided := false
 
 		if c.Args().Len() == 1 {
 			v := c.Args().Get(0)
 			fmt.Printf("Received argument: %s\n", v)
+			versionExplicitlyProvided = true
 
 			// Handle "latest" parameter
 			if strings.ToLower(v) == "latest" {
@@ -34,13 +36,6 @@ var Use = &cli.Command{
 				}
 				version = latestVersion
 				fmt.Printf("Latest version: %s\n", version)
-
-				projectRequiredVersion, err := utils.GetVersionFromProjectFile()
-				if err == nil && projectRequiredVersion != "" && utils.IsVersionConstraint(projectRequiredVersion) {
-					if err := utils.ValidateVersionAgainstConstraint(version, projectRequiredVersion); err != nil {
-						return fmt.Errorf("latest version %s is not compatible with the required project cli version %s", version, projectRequiredVersion)
-					}
-				}
 
 				// Check if latest version is already installed
 				binPath := filepath.Join(utils.JfvmVersions, version, utils.BinaryName)
@@ -61,12 +56,6 @@ var Use = &cli.Command{
 				} else {
 					// don't log anything — just fallback silently
 					version = v
-				}
-				projectVersion, err := utils.GetVersionFromProjectFile()
-				if err == nil && projectVersion != "" && utils.IsVersionConstraint(projectVersion) {
-					if err := utils.ValidateVersionAgainstConstraint(version, projectVersion); err != nil {
-						return fmt.Errorf("version %s is not compatible with the required project cli version %s", version, projectVersion)
-					}
 				}
 			}
 		} else {
@@ -106,7 +95,7 @@ var Use = &cli.Command{
 			}
 		}
 
-		if err := utils.ValidateVersionAgainstProject(version); err != nil {
+		if err := utils.ValidateVersionAgainstProject(version, versionExplicitlyProvided); err != nil {
 			return cli.Exit(fmt.Sprintf("%v", err), 1)
 		}
 

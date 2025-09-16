@@ -84,7 +84,7 @@ func ParseVersionConstraint(constraint string) (VersionConstraint, error) {
 	matches := re.FindStringSubmatch(constraint)
 
 	if matches == nil {
-		return VersionConstraint{}, fmt.Errorf("invalid project cli version constraint format: %s", constraint)
+		return VersionConstraint{}, fmt.Errorf("invalid cli version provided in .jfrog-version file: %s", constraint)
 	}
 
 	operator := matches[1]
@@ -176,18 +176,33 @@ func IsVersionConstraint(s string) bool {
 }
 
 func ValidateVersionAgainstConstraint(version, projectRequiredVersion string) error {
+	if projectRequiredVersion == "" {
+		return nil
+	}
+
+	if !IsVersionConstraint(projectRequiredVersion) {
+		if _, err := ParseVersion(projectRequiredVersion); err != nil {
+			return fmt.Errorf("invalid cli version '%s' in .jfrog-version file: %v", projectRequiredVersion, err)
+		}
+
+		if version == projectRequiredVersion {
+			return nil
+		}
+		return fmt.Errorf("version %s does not match required project version %s", version, projectRequiredVersion)
+	}
+
 	versionConstraint, err := ParseVersionConstraint(projectRequiredVersion)
 	if err != nil {
-		return fmt.Errorf("invalid cli version '%s' provided in .jfrog-version file", projectRequiredVersion)
+		return err
 	}
 
 	targetVersion, err := ParseVersion(version)
 	if err != nil {
-		return fmt.Errorf("unable to parse version '%s' ", version)
+		return fmt.Errorf("unable to parse version '%s': %v", version, err)
 	}
 
 	if !versionConstraint.Matches(targetVersion) {
-		return fmt.Errorf("please use a version %s", projectRequiredVersion)
+		return fmt.Errorf("version %s is not compatible with project required version %s ", version, projectRequiredVersion)
 	}
 
 	return nil
