@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -19,6 +20,8 @@ const (
 	ProjectFile = ".jfrog-version"
 	AliasesDir  = "aliases"
 	ShimDir     = "shim"
+
+	MaxDescriptionLength = 40
 )
 
 var (
@@ -60,13 +63,39 @@ func GetVersionFromProjectFile() (string, error) {
 	return version, nil
 }
 
+// AliasData represents an alias configuration
+type AliasData struct {
+	Version     string `json:"version"`
+	Description string `json:"description,omitempty"`
+}
+
+// ResolveAlias reads an alias configuration and returns the version
 func ResolveAlias(name string) (string, error) {
-	path := filepath.Join(JfvmAliases, name)
-	data, err := os.ReadFile(path)
+	aliasData, err := GetAliasData(name)
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimSpace(string(data)), nil
+	return aliasData.Version, nil
+}
+
+// GetAliasData reads and parses alias data from the alias file
+func GetAliasData(aliasName string) (*AliasData, error) {
+	path := filepath.Join(JfvmAliases, aliasName)
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+
+	var aliasData AliasData
+	if err := json.Unmarshal(data, &aliasData); err == nil {
+		return &aliasData, nil
+	}
+
+	// Handle legacy format (plain version string)
+	version := strings.TrimSpace(string(data))
+	return &AliasData{
+		Version: version,
+	}, nil
 }
 
 // ResolveVersionOrAlias attempts to resolve an alias first, then falls back to the original name
