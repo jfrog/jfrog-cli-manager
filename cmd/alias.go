@@ -13,11 +13,6 @@ import (
 	"github.com/urfave/cli/v2"
 )
 
-type AliasData struct {
-	Version     string `json:"version"`
-	Description string `json:"description,omitempty"`
-}
-
 var Alias = &cli.Command{
 	Name:  "alias",
 	Usage: "Manage aliases for JFrog CLI versions",
@@ -47,7 +42,7 @@ var Alias = &cli.Command{
 
 				os.MkdirAll(utils.JfvmAliases, 0755)
 
-				aliasData := AliasData{
+				aliasData := utils.AliasData{
 					Version:     version,
 					Description: description,
 				}
@@ -77,7 +72,7 @@ var Alias = &cli.Command{
 				}
 
 				aliasName := c.Args().Get(0)
-				aliasData, err := getAliasData(aliasName)
+				aliasData, err := utils.GetAliasData(aliasName)
 				if err != nil {
 					return fmt.Errorf("alias '%s' not found", aliasName)
 				}
@@ -146,12 +141,12 @@ func listAliases(noColor bool) error {
 	}
 
 	// Filter out directories and collect aliases
-	aliases := make(map[string]AliasData)
+	aliases := make(map[string]utils.AliasData)
 	for _, entry := range entries {
 		if !entry.IsDir() {
 			aliasName := entry.Name()
 			// Read the version and description(if provided) from the alias file
-			aliasData, err := getAliasData(aliasName)
+			aliasData, err := utils.GetAliasData(aliasName)
 			if err == nil {
 				aliases[aliasName] = *aliasData
 			}
@@ -237,7 +232,7 @@ func listAliases(noColor bool) error {
 		var content string
 		if aliasData.Description != "" {
 			desc := aliasData.Description
-			if len(desc) > 40 {
+			if len(desc) > utils.MaxDescriptionLength {
 				desc = desc[:37] + "..."
 			}
 			content = fmt.Sprintf("%s\n%s\n\n%s %s",
@@ -281,22 +276,4 @@ func listAliases(noColor bool) error {
 	fmt.Println(summaryStyle.Render(summary))
 
 	return nil
-}
-
-func getAliasData(aliasName string) (*AliasData, error) {
-	path := filepath.Join(utils.JfvmAliases, aliasName)
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-
-	var aliasData AliasData
-	if err := json.Unmarshal(data, &aliasData); err == nil {
-		return &aliasData, nil
-	}
-
-	version := strings.TrimSpace(string(data))
-	return &AliasData{
-		Version: version,
-	}, nil
 }
