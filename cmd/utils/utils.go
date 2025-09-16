@@ -19,15 +19,17 @@ const (
 	ProjectFile = ".jfrog-version"
 	AliasesDir  = "aliases"
 	ShimDir     = "shim"
+	BlockFile   = "blocked-versions"
 )
 
 var (
-	HomeDir      = os.Getenv("HOME")
-	JfvmRoot     = filepath.Join(HomeDir, "."+ToolName)
-	JfvmConfig   = filepath.Join(JfvmRoot, ConfigFile)
-	JfvmVersions = filepath.Join(JfvmRoot, VersionsDir)
-	JfvmAliases  = filepath.Join(JfvmRoot, AliasesDir)
-	JfvmShim     = filepath.Join(JfvmRoot, ShimDir)
+	HomeDir       = os.Getenv("HOME")
+	JfvmRoot      = filepath.Join(HomeDir, "."+ToolName)
+	JfvmConfig    = filepath.Join(JfvmRoot, ConfigFile)
+	JfvmVersions  = filepath.Join(JfvmRoot, VersionsDir)
+	JfvmAliases   = filepath.Join(JfvmRoot, AliasesDir)
+	JfvmShim      = filepath.Join(JfvmRoot, ShimDir)
+	JfvmBlockFile = filepath.Join(JfvmRoot, BlockFile)
 )
 
 // InitializeJfvmDirectories creates the necessary jfvm directories if they don't exist
@@ -679,4 +681,54 @@ func GetRunnerInfo() string {
 	info = append(info, fmt.Sprintf("Timestamp: %s", time.Now().Format(time.RFC3339)))
 
 	return strings.Join(info, ", ")
+}
+
+func IsVersionBlocked(version string) (bool, error) {
+	if _, err := os.Stat(JfvmBlockFile); os.IsNotExist(err) {
+		return false, nil
+	}
+
+	content, err := os.ReadFile(JfvmBlockFile)
+	if err != nil {
+		return false, fmt.Errorf("failed to read block file: %w", err)
+	}
+
+	blockedVersions := strings.Split(strings.TrimSpace(string(content)), "\n")
+	for _, blocked := range blockedVersions {
+		if strings.TrimSpace(blocked) == version {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
+func BlockVersion(version string) error {
+	blocked, err := IsVersionBlocked(version)
+	if err != nil {
+		return err
+	}
+	if blocked {
+		return fmt.Errorf("version %s is already blocked", version)
+	}
+
+	var blockedVersions []string
+	if _, err := os.Stat(JfvmBlockFile); err == nil {
+		content, err := os.ReadFile(JfvmBlockFile)
+		if err != nil {
+			return fmt.Errorf("failed to read block file: %w", err)
+		}
+		if len(content) > 0 {
+			blockedVersions = strings.Split(strings.TrimSpace(string(content)), "\n")
+		}
+	}
+
+	blockedVersions = append(blockedVersions, version)
+
+	content := strings.Join(blockedVersions, "\n")
+	if err := os.WriteFile(JfvmBlockFile, []byte(content), 0644); err != nil {
+		return fmt.Errorf("failed to write block file: %w", err)
+	}
+
+	return nil
 }
