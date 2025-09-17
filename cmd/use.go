@@ -20,10 +20,12 @@ var Use = &cli.Command{
 	Action: func(c *cli.Context) error {
 		fmt.Println("Executing 'jfvm use' command...")
 		var version string
+		versionExplicitlyProvided := false
 
 		if c.Args().Len() == 1 {
 			v := c.Args().Get(0)
 			fmt.Printf("Received argument: %s\n", v)
+			versionExplicitlyProvided = true
 
 			// Handle "latest" parameter
 			if strings.ToLower(v) == "latest" {
@@ -61,8 +63,23 @@ var Use = &cli.Command{
 			if err != nil {
 				return cli.Exit("No version provided and no .jfrog-version file found", 1)
 			}
-			version = v
-			fmt.Printf("Using version from .jfrog-version: %s\n", version)
+
+			if utils.IsVersionConstraint(v) {
+				installedVersions, err := utils.GetInstalledVersions()
+				if err != nil {
+					return fmt.Errorf("failed to get installed cli versions: %v", err)
+				}
+
+				matchingVersion, err := utils.FindMatchingVersion(v, installedVersions)
+				if err != nil {
+					return fmt.Errorf("please install a cli version %s which is compatible with the project", v)
+				}
+
+				version = matchingVersion
+			} else {
+				version = v
+				fmt.Printf("Using version from .jfrog-version: %s\n", version)
+			}
 		}
 
 		isBlocked, err := utils.IsVersionBlocked(version)
@@ -84,6 +101,10 @@ var Use = &cli.Command{
 					return fmt.Errorf("auto-install failed: %w", err)
 				}
 			}
+		}
+
+		if err := utils.ValidateVersionAgainstProject(version, versionExplicitlyProvided); err != nil {
+			return cli.Exit(fmt.Sprintf("%v", err), 1)
 		}
 
 		fmt.Printf("Writing selected version '%s' to config file: %s\n", version, utils.JfvmConfig)
