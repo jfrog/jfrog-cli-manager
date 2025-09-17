@@ -709,3 +709,16 @@ func GetRunnerInfo() string {
 
 	return strings.Join(info, ", ")
 }
+
+func ValidateVersionAgainstProject(targetVersion string, versionExplicitlyProvided bool) error {
+	projectVersion, err := GetVersionFromProjectFile()
+	if err != nil || projectVersion == "" {
+		return nil
+	}
+
+	if versionExplicitlyProvided && !IsVersionConstraint(projectVersion) {
+		return nil
+	}
+
+	return ValidateVersionAgainstConstraint(targetVersion, projectVersion)
+}

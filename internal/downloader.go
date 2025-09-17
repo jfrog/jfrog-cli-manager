@@ -46,11 +46,13 @@ func DownloadAndInstall(version string) error {
 	os.MkdirAll(dir, 0755)
 	binPath := filepath.Join(dir, utils.BinaryName)
 
-	out, err := os.Create(binPath)
+	tmpPath := binPath + ".tmp"
+	out, err := os.Create(tmpPath)
 	if err != nil {
-		return fmt.Errorf("failed to create binary file: %w", err)
+		return fmt.Errorf("failed to create temporary file: %w", err)
 	}
 	defer out.Close()
+	defer os.Remove(tmpPath)
 
 	resp, err := http.Get(url)
 	if err != nil {
@@ -59,12 +61,21 @@ func DownloadAndInstall(version string) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		if resp.StatusCode == http.StatusNotFound {
+			return fmt.Errorf("version %s not found. Please check if this version exists", version)
+		}
 		return fmt.Errorf("failed to download: %s", resp.Status)
 	}
 
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
 		return fmt.Errorf("failed to write binary: %w", err)
+	}
+
+	out.Close()
+
+	if err := os.Rename(tmpPath, binPath); err != nil {
+		return fmt.Errorf("failed to move binary to final location: %w", err)
 	}
 
 	if err := os.Chmod(binPath, 0755); err != nil {
