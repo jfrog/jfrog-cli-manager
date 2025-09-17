@@ -82,6 +82,14 @@ var Use = &cli.Command{
 			}
 		}
 
+		isBlocked, err := utils.IsVersionBlocked(version)
+		if err != nil {
+			return fmt.Errorf("failed to check if version is blocked: %w", err)
+		}
+		if isBlocked {
+			return cli.Exit("This version is blocked for this project. Please use another version.", 1)
+		}
+
 		// For non-latest versions, check if binary exists and install if needed
 		if c.Args().Len() == 0 || strings.ToLower(c.Args().Get(0)) != "latest" {
 			binPath := filepath.Join(utils.JfvmVersions, version, utils.BinaryName)

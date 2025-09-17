@@ -54,6 +54,7 @@ func main() {
 			cmd.History,
 			cmd.AddHistoryEntryCmd,
 			cmd.HealthCheck,
+			cmd.Block,
 		},
 	}
 
