@@ -13,14 +13,14 @@ import (
 )
 
 const (
-	ToolName    = "jfvm"
-	ConfigFile  = "config"
-	VersionsDir = "versions"
-	BinaryName  = "jf"
-	ProjectFile = ".jfrog-version"
-	AliasesDir  = "aliases"
-	ShimDir     = "shim"
-	BlockFile   = "blocked-versions"
+	ToolName             = "jfvm"
+	ConfigFile           = "config"
+	VersionsDir          = "versions"
+	BinaryName           = "jf"
+	ProjectFile          = ".jfrog-version"
+	AliasesDir           = "aliases"
+	ShimDir              = "shim"
+	BlockFile            = "blocked-versions"
 	MaxDescriptionLength = 40
 )
 
@@ -734,7 +734,12 @@ func IsVersionBlocked(version string) (bool, error) {
 		return false, fmt.Errorf("failed to read block file: %w", err)
 	}
 
-	blockedVersions := strings.Split(strings.TrimSpace(string(content)), "\n")
+	contentStr := strings.TrimSpace(string(content))
+	if contentStr == "" {
+		return false, nil
+	}
+
+	blockedVersions := strings.Split(contentStr, "\n")
 	for _, blocked := range blockedVersions {
 		if strings.TrimSpace(blocked) == version {
 			return true, nil

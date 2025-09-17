@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
 	"github.com/urfave/cli/v2"
@@ -18,6 +19,16 @@ var Block = &cli.Command{
 		}
 
 		version := c.Args().Get(0)
+
+		version = strings.TrimSpace(version)
+		if version == "" {
+			return cli.Exit("no version provided", 1)
+		}
+
+		if _, err := utils.ParseVersion(version); err != nil {
+			return cli.Exit(fmt.Sprintf("Invalid version format: %v", err), 1)
+		}
+
 		fmt.Printf("Blocking version %s...\n", version)
 
 		if err := utils.BlockVersion(version); err != nil {
