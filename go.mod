@@ -7,7 +7,6 @@ require (
 	github.com/charmbracelet/lipgloss v1.1.0
 	github.com/fatih/color v1.16.0
 	github.com/olekukonko/tablewriter v1.0.8
-	github.com/sergi/go-diff v1.3.1
 	github.com/urfave/cli/v2 v2.27.6
 	golang.org/x/sync v0.15.0
 )
