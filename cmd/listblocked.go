@@ -9,10 +9,10 @@ import (
 
 var ListBlocked = &cli.Command{
 	Name:    "list-blocked",
-	Usage:   "List all blocked versions of jf-cli",
-	Aliases: []string{"blocked"},
-	Description: `All versions of jf-cli that are currently blocked.
-These versions cannot be used until they are unblocked using 'jfvm unblock <versions>' command.`,
+	Usage:   "Lists all blocked versions of jf-cli",
+	Aliases: []string{"lb"},
+	Description: `All versions of jf-cli that are blocked.
+                  These versions cannot be used until they are unblocked using 'jfvm unblock <versions>' command.`,
 	Action: func(c *cli.Context) error {
 		blockedVersions, err := utils.GetBlockedVersions()
 		if err != nil {

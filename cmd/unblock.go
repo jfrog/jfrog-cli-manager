@@ -11,7 +11,7 @@ import (
 var Unblock = &cli.Command{
 	Name:        "unblock",
 	Usage:       "Unblock a previously blocked version of jf cli",
-	ArgsUsage:   "<version>",
+	ArgsUsage:   "[version]",
 	Description: `Unblock a specific version of jf-cli that was previously blocked.`,
 	Action: func(c *cli.Context) error {
 		if c.Args().Len() != 1 {
