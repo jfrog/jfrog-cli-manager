@@ -1,4 +1,4 @@
-name: Release jfvm to Homebrew
+name: Release jfvm
 
 on:
   push:
@@ -9,79 +9,242 @@ on:
       tag:
         description: 'Tag to release (e.g. v2.0.0)'
         required: true
+        type: string
 
 permissions:
   contents: write
 
+env:
+  GO_VERSION: '1.23'
+
 jobs:
-  build:
-    runs-on: macos-latest
+  validate:
+    name: Validate inputs and environment
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.validate.outputs.tag }}
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        
+      - name: Validate tag format and determine release tag
+        id: validate
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: ./.github/scripts/validate-tag.sh
 
+  build:
+    name: Build binaries
+    runs-on: ubuntu-latest
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: darwin
+            goarch: amd64
+          - goos: darwin
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5.0.1
         with:
-          go-version: '1.24'
-
-      - name: Determine tag to release
-        id: tag
+          go-version: ${{ env.GO_VERSION }}
+          
+      - name: Verify Go installation and dependencies
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "Detected manual run"
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "Detected tag push"
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
-
+          echo "Go version: $(go version)"
+          echo "Checking go.mod..."
+          go mod verify
+          go mod tidy -v
+          echo "✅ Dependencies verified"
+          
+      - name: Install required tools
+        run: |
+          sudo apt-get update && sudo apt-get install -y zip unzip
+          
       - name: Build binary
+        id: build
         run: |
-          mkdir -p dist
-          go build -o dist/jfvm
-
-      - name: Create tarball
+          ./.github/scripts/build-binary.sh \
+            "${{ needs.validate.outputs.tag }}" \
+            "${{ matrix.goos }}" \
+            "${{ matrix.goarch }}"
+          
+      - name: Package and generate checksums
         run: |
-          tar -czf jfvm-${{ steps.tag.outputs.tag }}.tar.gz -C dist jfvm
-
-      - name: Compute SHA256
-        id: sha
-        run: echo "sha=$(shasum -a 256 jfvm-${{ steps.tag.outputs.tag }}.tar.gz | awk '{print $1}')" >> $GITHUB_OUTPUT
-
-      - name: Upload GitHub Release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ steps.tag.outputs.tag }}
-          files: jfvm-${{ steps.tag.outputs.tag }}.tar.gz
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Generate Homebrew formula
+          ./.github/scripts/package-artifacts.sh \
+            "${{ needs.validate.outputs.tag }}" \
+            "${{ matrix.goos }}" \
+            "${{ matrix.goarch }}" \
+            "${{ steps.build.outputs.binary_path }}"
+          
+      - name: Add build summary
         run: |
-          # Remove 'v' prefix from tag for version
-          VERSION="${{ steps.tag.outputs.tag }}"
-          VERSION_NO_V="${VERSION#v}"
-
-          cat <<EOF > jfvm.rb
-          class Jfvm < Formula
-            desc "Manage multiple versions of JFrog CLI"
-            homepage "https://github.com/${{ github.repository }}"
-            url "https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/jfvm-${{ steps.tag.outputs.tag }}.tar.gz"
-            sha256 "${{ steps.sha.outputs.sha }}"
-            version "${VERSION_NO_V}"
-
-            def install
-              bin.install "jfvm"
-            end
-
-            test do
-              system "#{bin}/jfvm", "--help"
-            end
-          end
-          EOF
-
-      - name: Upload formula to artifacts
+          ./.github/scripts/add-summary.sh build \
+            "${{ matrix.goos }}" \
+            "${{ matrix.goarch }}" \
+            "${{ steps.build.outputs.binary_size }}" \
+            "${{ needs.validate.outputs.tag }}" \
+            "$(date -u '+%Y-%m-%d_%H:%M:%S')" \
+            "$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+          
+      - name: Upload build artifacts
         uses: actions/upload-artifact@v4.6.2
         with:
-          name: jfvm.rb
+          name: "artifacts-${{ matrix.goos }}-${{ matrix.goarch }}"
+          path: |
+            jfvm-${{ needs.validate.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+          if-no-files-found: error
+          retention-days: 30
+
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [validate, build]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4.1.7
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          
+      - name: Verify downloaded artifacts
+        id: verify
+        run: |
+          set -euo pipefail
+          
+          VERSION="${{ needs.validate.outputs.tag }}"
+          echo "🔍 Verifying downloaded artifacts for release $VERSION"
+          
+          # List all downloaded files
+          echo "📋 Downloaded files:"
+          ls -la . || {
+            echo "❌ Error: No files downloaded"
+            exit 1
+          }
+          
+          # Check that we have files for each expected platform/arch combination
+          EXPECTED_PLATFORMS=("linux-amd64" "linux-arm64" "darwin-amd64" "darwin-arm64" "windows-amd64")
+          
+          for platform in "${EXPECTED_PLATFORMS[@]}"; do
+            echo "Checking platform: $platform"
+            
+            if [[ "$platform" == "windows-amd64" ]]; then
+              # Windows files
+              if [[ ! -f "jfvm-${VERSION}-${platform}.zip" ]]; then
+                echo "❌ Error: Missing Windows ZIP: jfvm-${VERSION}-${platform}.zip"
+                exit 1
+              fi
+              if [[ ! -f "jfvm-${VERSION}-${platform}-raw.exe" ]]; then
+                echo "❌ Error: Missing Windows raw binary: jfvm-${VERSION}-${platform}-raw.exe"
+                exit 1
+              fi
+            else
+              # Unix files
+              if [[ ! -f "jfvm-${VERSION}-${platform}.tar.gz" ]]; then
+                echo "❌ Error: Missing Unix tar.gz: jfvm-${VERSION}-${platform}.tar.gz"
+                exit 1
+              fi
+              if [[ ! -f "jfvm-${VERSION}-${platform}-raw" ]]; then
+                echo "❌ Error: Missing Unix raw binary: jfvm-${VERSION}-${platform}-raw"
+                exit 1
+              fi
+            fi
+          done
+          
+          # Count total files
+          TOTAL_FILES=$(ls -1 jfvm-${VERSION}-* | wc -l)
+          echo "✅ Found $TOTAL_FILES release files"
+          echo "total_files=$TOTAL_FILES" >> $GITHUB_OUTPUT
+          
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.validate.outputs.tag }}
+          name: "jfvm ${{ needs.validate.outputs.tag }}"
+          files: |
+            jfvm-${{ needs.validate.outputs.tag }}-*.tar.gz
+            jfvm-${{ needs.validate.outputs.tag }}-*.tar.gz.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-*.zip
+            jfvm-${{ needs.validate.outputs.tag }}-*.zip.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-*-raw
+            jfvm-${{ needs.validate.outputs.tag }}-*-raw.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-*-raw.exe
+            jfvm-${{ needs.validate.outputs.tag }}-*-raw.exe.sha256
+          generate_release_notes: true
+          draft: false
+          prerelease: ${{ contains(needs.validate.outputs.tag, '-') }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: true
+          
+      - name: Add release summary
+        run: |
+          VERSION="${{ needs.validate.outputs.tag }}"
+          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$VERSION"
+          TOTAL_FILES="${{ steps.verify.outputs.total_files }}"
+          
+          ./.github/scripts/add-summary.sh release "$VERSION" "$TOTAL_FILES" "$RELEASE_URL"
+
+  homebrew_formula:
+    name: Generate Homebrew formula
+    runs-on: ubuntu-latest
+    needs: [validate, release]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        
+      - name: Download artifacts for Homebrew formula
+        uses: actions/download-artifact@v4.1.7
+        with:
+          pattern: artifacts-*
+          merge-multiple: true
+          
+      - name: Extract checksums and generate formula
+        id: formula
+        run: |
+          set -euo pipefail
+          
+          TAG="${{ needs.validate.outputs.tag }}"
+          echo "🔍 Extracting checksums for Homebrew formula generation"
+          
+          # Extract checksums with error checking
+          DARWIN_AMD_SHA="$(awk '{print $1}' "jfvm-${TAG}-darwin-amd64.tar.gz.sha256")"
+          DARWIN_ARM_SHA="$(awk '{print $1}' "jfvm-${TAG}-darwin-arm64.tar.gz.sha256")"
+          LINUX_AMD_SHA="$(awk '{print $1}' "jfvm-${TAG}-linux-amd64.tar.gz.sha256")"
+          LINUX_ARM_SHA="$(awk '{print $1}' "jfvm-${TAG}-linux-arm64.tar.gz.sha256")"
+          
+          # Generate formula
+          ./.github/scripts/generate-homebrew-formula.sh \
+            "$TAG" \
+            "${{ github.repository }}" \
+            "$DARWIN_AMD_SHA" \
+            "$DARWIN_ARM_SHA" \
+            "$LINUX_AMD_SHA" \
+            "$LINUX_ARM_SHA"
+          
+      - name: Add Homebrew summary
+        run: |
+          ./.github/scripts/add-summary.sh homebrew \
+            "${{ needs.validate.outputs.tag }}" \
+            "${{ steps.formula.outputs.formula_size }}"
+          
+      - name: Upload Homebrew formula
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: homebrew-formula
           path: jfvm.rb
+          retention-days: 90
