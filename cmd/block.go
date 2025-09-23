@@ -15,7 +15,7 @@ var Block = &cli.Command{
 	Description: `Block a specific version of jf cli from being used`,
 	Action: func(c *cli.Context) error {
 		if c.Args().Len() != 1 {
-			return cli.Exit("Please provide a version to block", 1)
+			return cli.Exit("Please provide a specific version to block", 1)
 		}
 
 		version := c.Args().Get(0)
