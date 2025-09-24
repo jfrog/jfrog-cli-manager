@@ -143,8 +143,8 @@ jobs:
                 echo "❌ Error: Missing Windows ZIP: jfvm-${VERSION}-${platform}.zip"
                 exit 1
               fi
-              if [[ ! -f "jfvm-${VERSION}-${platform}-raw.exe" ]]; then
-                echo "❌ Error: Missing Windows raw binary: jfvm-${VERSION}-${platform}-raw.exe"
+              if [[ ! -f "jfvm-${VERSION}-${platform}.exe" ]]; then
+                echo "❌ Error: Missing Windows binary: jfvm-${VERSION}-${platform}.exe"
                 exit 1
               fi
             else
@@ -153,8 +153,8 @@ jobs:
                 echo "❌ Error: Missing Unix tar.gz: jfvm-${VERSION}-${platform}.tar.gz"
                 exit 1
               fi
-              if [[ ! -f "jfvm-${VERSION}-${platform}-raw" ]]; then
-                echo "❌ Error: Missing Unix raw binary: jfvm-${VERSION}-${platform}-raw"
+              if [[ ! -f "jfvm-${VERSION}-${platform}" ]]; then
+                echo "❌ Error: Missing Unix binary: jfvm-${VERSION}-${platform}"
                 exit 1
               fi
             fi
@@ -175,10 +175,12 @@ jobs:
             jfvm-${{ needs.validate.outputs.tag }}-*.tar.gz.sha256
             jfvm-${{ needs.validate.outputs.tag }}-*.zip
             jfvm-${{ needs.validate.outputs.tag }}-*.zip.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-*-raw
-            jfvm-${{ needs.validate.outputs.tag }}-*-raw.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-*-raw.exe
-            jfvm-${{ needs.validate.outputs.tag }}-*-raw.exe.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-linux-*
+            jfvm-${{ needs.validate.outputs.tag }}-linux-*.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-darwin-*
+            jfvm-${{ needs.validate.outputs.tag }}-darwin-*.sha256
+            jfvm-${{ needs.validate.outputs.tag }}-windows-*.exe
+            jfvm-${{ needs.validate.outputs.tag }}-windows-*.exe.sha256
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(needs.validate.outputs.tag, '-') }}

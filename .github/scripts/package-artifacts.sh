@@ -45,10 +45,10 @@ if [ "$GOOS" = "windows" ]; then
   echo "  Generating checksums..."
   sha256sum "${BASENAME}.zip" | awk '{print $1"  "$2}' > "${BASENAME}.zip.sha256"
   
-  # Raw binary for direct download
-  echo "  Creating raw binary copy..."
-  cp "$BINARY_PATH" "${BASENAME}-raw${EXT}"
-  sha256sum "${BASENAME}-raw${EXT}" | awk '{print $1"  "$2}' > "${BASENAME}-raw${EXT}.sha256"
+  # Standalone binary for direct download
+  echo "  Creating standalone binary..."
+  cp "$BINARY_PATH" "${BASENAME}${EXT}"
+  sha256sum "${BASENAME}${EXT}" | awk '{print $1"  "$2}' > "${BASENAME}${EXT}.sha256"
   
   echo "✅ Windows packaging complete"
   
@@ -71,10 +71,10 @@ else
   echo "  Generating checksums..."
   sha256sum "${BASENAME}.tar.gz" | awk '{print $1"  "$2}' > "${BASENAME}.tar.gz.sha256"
   
-  # Raw binary for direct download
-  echo "  Creating raw binary copy..."
-  cp "$BINARY_PATH" "${BASENAME}-raw"
-  sha256sum "${BASENAME}-raw" | awk '{print $1"  "$2}' > "${BASENAME}-raw.sha256"
+    # Standalone binary for direct download
+    echo "  Creating standalone binary..."
+    cp "$BINARY_PATH" "${BASENAME}"
+    sha256sum "${BASENAME}" | awk '{print $1"  "$2}' > "${BASENAME}.sha256"
   
   echo "✅ Unix packaging complete"
 fi
@@ -82,7 +82,7 @@ fi
 # Verify checksums
 echo "🔒 Verifying checksums..."
 if [ "$GOOS" = "windows" ]; then
-  for file in "${BASENAME}.zip" "${BASENAME}-raw${EXT}"; do
+  for file in "${BASENAME}.zip" "${BASENAME}${EXT}"; do
     if [[ -f "$file" && -f "$file.sha256" ]]; then
       echo "  Checking $file..."
       sha256sum -c "$file.sha256" || {
@@ -95,7 +95,7 @@ if [ "$GOOS" = "windows" ]; then
     fi
   done
 else
-  for file in "${BASENAME}.tar.gz" "${BASENAME}-raw"; do
+  for file in "${BASENAME}.tar.gz" "${BASENAME}"; do
     if [[ -f "$file" && -f "$file.sha256" ]]; then
       echo "  Checking $file..."
       sha256sum -c "$file.sha256" || {
