@@ -608,7 +608,11 @@ func createVersionChartSection(stats map[string]*VersionStats, boxStyle lipgloss
 		barData := barchart.BarData{
 			Label: fmt.Sprintf("v%s", version.Version),
 			Values: []barchart.BarValue{
-				{fmt.Sprintf("%d uses", version.Count), float64(version.Count), chartColor},
+				{
+					Name:  fmt.Sprintf("%d uses", version.Count),
+					Value: float64(version.Count),
+					Style: chartColor,
+				},
 			},
 		}
 		bc.Push(barData)

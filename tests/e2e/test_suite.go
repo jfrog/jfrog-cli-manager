@@ -325,15 +325,15 @@ func TestCompareVersions(t *testing.T) {
 	ts.RunCommand(t, "install", "2.74.0")
 	ts.RunCommand(t, "install", "2.73.0")
 
-	t.Run("Compare Version Output", func(t *testing.T) {
-		output, err := ts.RunCommand(t, "compare", "2.74.0", "2.73.0", "--", "--version")
+	t.Run("Compare CLI Version Output", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "compare", "cli", "2.74.0", "2.73.0", "--", "--version")
 		ts.AssertSuccess(t, output, err)
 		ts.AssertContains(t, output, "2.74.0")
 		ts.AssertContains(t, output, "2.73.0")
 	})
 
-	t.Run("Compare With Unified Diff", func(t *testing.T) {
-		output, err := ts.RunCommand(t, "compare", "2.74.0", "2.73.0", "--", "--version", "--unified")
+	t.Run("Compare CLI With Unified Diff", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "compare", "cli", "2.74.0", "2.73.0", "--unified", "--", "--version")
 		ts.AssertSuccess(t, output, err)
 		ts.AssertContains(t, output, "unified")
 	})
@@ -487,7 +487,7 @@ func TestIntegration(t *testing.T) {
 		ts.RunCommand(t, "use", "dev")
 
 		// Compare versions
-		ts.RunCommand(t, "compare", "prod", "dev", "--", "--version")
+		ts.RunCommand(t, "compare", "cli", "prod", "dev", "--", "--version")
 
 		// Benchmark
 		ts.RunCommand(t, "benchmark", "prod,dev", "--", "--version")
@@ -592,5 +592,102 @@ func TestShimAndPATH(t *testing.T) {
 		ts.AssertSuccess(t, output, err)
 		ts.AssertContains(t, output, "jfvm Health Check")
 		ts.AssertContains(t, output, "Details:")
+	})
+}
+
+// TestChangelogFunctionality tests changelog functionality
+func TestChangelogFunctionality(t *testing.T) {
+	ts := SetupTestSuite(t)
+	defer ts.CleanupTestSuite(t)
+
+	t.Run("Compare Command Structure", func(t *testing.T) {
+		// Test main compare command shows subcommands
+		output, err := ts.RunCommand(t, "compare", "--help")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "changelog")
+		ts.AssertContains(t, output, "cli")
+		ts.AssertContains(t, output, "subcommands")
+	})
+
+	t.Run("Changelog Subcommand Help", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "compare", "changelog", "--help")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Compare release notes between two versions")
+		ts.AssertContains(t, output, "<version1> <version2>")
+	})
+
+	t.Run("CLI Subcommand Help", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "compare", "cli", "--help")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Compare JFrog CLI command execution between two versions")
+		ts.AssertContains(t, output, "<version1> <version2> -- <jf-command>")
+		ts.AssertContains(t, output, "--unified")
+	})
+
+	t.Run("Fetch Release Notes Between Versions", func(t *testing.T) {
+		// Test fetching changelog between two JFrog CLI versions using compare changelog
+		output, err := ts.RunCommandWithTimeout(t, 60*time.Second, "compare", "changelog", "v2.50.0", "v2.52.0")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Release Notes")
+	})
+
+	t.Run("Fetch Release Notes With Aliases", func(t *testing.T) {
+		// Test fetching changelog with version aliases
+		output, err := ts.RunCommandWithTimeout(t, 60*time.Second, "compare", "changelog", "v2.50.0", "v2.51.0")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Release Notes")
+	})
+
+	t.Run("Invalid Version Tags", func(t *testing.T) {
+		output, err := ts.RunCommandWithTimeout(t, 30*time.Second, "compare", "changelog", "v999.999.999", "v999.999.998")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "error")
+	})
+
+	t.Run("Missing Arguments for Changelog", func(t *testing.T) {
+		output, err := ts.RunCommand(t, "compare", "changelog", "v2.50.0")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "Usage")
+	})
+
+	t.Run("Filtered Release Notes", func(t *testing.T) {
+		// Test that release notes are properly filtered (removing "New Contributors" etc.)
+		output, err := ts.RunCommandWithTimeout(t, 60*time.Second, "compare", "changelog", "v2.50.0", "v2.51.0")
+		ts.AssertSuccess(t, output, err)
+		// Should not contain "New Contributors" section
+		ts.AssertNotContains(t, output, "## New Contributors")
+	})
+
+	t.Run("Changelog With Same Version", func(t *testing.T) {
+		// Test edge case where from and to versions are the same
+		output, err := ts.RunCommandWithTimeout(t, 30*time.Second, "compare", "changelog", "v2.50.0", "v2.50.0")
+		// This should either work (showing just that version) or fail gracefully
+		if err != nil {
+			ts.AssertContains(t, output, "same version")
+		} else {
+			ts.AssertContains(t, output, "v2.50.0")
+		}
+	})
+
+	t.Run("Network Timeout Handling", func(t *testing.T) {
+		// Test with a very short timeout to simulate network issues
+		output, err := ts.RunCommandWithTimeout(t, 1*time.Second, "compare", "changelog", "v2.50.0", "v2.52.0")
+		// Should either succeed quickly or fail with timeout
+		if err != nil {
+			// Timeout or network error is acceptable for this test
+			t.Logf("Expected timeout or network error: %v, output: %s", err, output)
+		}
+	})
+
+	t.Run("Large Version Range", func(t *testing.T) {
+		// Test fetching changelog across many versions (should be limited to 5)
+		output, err := ts.RunCommandWithTimeout(t, 90*time.Second, "compare", "changelog", "v2.40.0", "v2.52.0")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Release Notes")
+		// Should limit to maximum 5 releases
+		releaseCount := strings.Count(output, "## ")
+		if releaseCount > 5 {
+			t.Errorf("Expected maximum 5 releases, but found %d", releaseCount)
+		}
 	})
 }

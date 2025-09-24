@@ -142,24 +142,32 @@ var Link = CommandDescription{
 }
 
 var Compare = CommandDescription{
-	Usage:       "Compare JFrog CLI command output between versions",
-	Description: "Compare JFrog CLI command output between two versions in parallel with git-like diff visualization. Measures execution time, success rate, and highlights differences.",
+	Usage:       "Compare JFrog CLI versions using subcommands",
+	Description: "Compare JFrog CLI versions with two specialized subcommands: 'changelog' for comparing release notes and 'cli' for comparing command execution outputs with git-like diff visualization.",
 	Examples: []Example{
 		{
-			Command:     "jfvm compare 2.74.0 2.73.0 -- --version",
-			Description: "Compare version output between two releases",
+			Command:     "jfvm compare changelog v2.75.1 v2.76.0",
+			Description: "Compare release notes between two versions",
 		},
 		{
-			Command:     "jfvm compare prod dev -- rt ping",
+			Command:     "jfvm compare cli 2.74.0 2.73.0 -- --version",
+			Description: "Compare version command output between releases",
+		},
+		{
+			Command:     "jfvm compare cli prod dev -- rt ping",
 			Description: "Compare command outputs using aliases",
 		},
 		{
-			Command:     "jfvm compare 2.74.0 2.73.0 -- config show --unified",
-			Description: "Show unified diff format",
+			Command:     "jfvm compare cli 2.74.0 2.73.0 -- config show --unified",
+			Description: "Show unified diff format for CLI comparison",
 		},
 		{
-			Command:     "jfvm compare old new -- rt search \"*.jar\" --no-color --timing=false",
-			Description: "Disable colored output and timing",
+			Command:     "jfvm compare changelog v2.74.0 v2.73.0 --no-color",
+			Description: "Compare changelogs without colored output",
+		},
+		{
+			Command:     "jfvm compare cli old new -- rt search \"*.jar\" --no-color --timing",
+			Description: "CLI comparison with custom formatting options",
 		},
 	},
 }

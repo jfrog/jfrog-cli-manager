@@ -128,21 +128,35 @@ jfvm health-check --verbose --fix --performance --security
 
 ### Advanced Features
 
-#### `jfvm compare <version1> <version2> -- <command>`
+#### `jfvm compare <subcommand>`
+Compare JFrog CLI versions with specialized subcommands for different comparison types.
+
+##### CLI Command Comparison (`jfvm compare cli`)
 Compare JFrog CLI command output between two versions in parallel with git-like diff visualization.
 
 ```bash
 # Compare version output
-jfvm compare 2.74.0 2.73.0 -- --version
+jfvm compare cli 2.74.0 2.73.0 -- --version
 
 # Compare command outputs with side-by-side diff
-jfvm compare prod dev -- rt ping
+jfvm compare cli prod dev -- rt ping
 
 # Show unified diff format
-jfvm compare 2.74.0 2.73.0 -- config show --unified
+jfvm compare cli 2.74.0 2.73.0 --unified -- config show
 
 # Disable colored output and timing
-jfvm compare old new -- rt search "*.jar" --no-color --timing=false
+jfvm compare cli old new --no-color --timing -- rt search "*.jar"
+```
+
+##### Changelog Comparison (`jfvm compare changelog`)
+Compare release notes and changelogs between two JFrog CLI versions.
+
+```bash
+# Compare release notes between versions
+jfvm compare changelog v2.75.1 v2.76.0
+
+# Compare changelogs with custom options
+jfvm compare changelog v2.74.0 v2.73.0 --no-color --timeout 60
 ```
 
 **Features:**
@@ -308,10 +322,13 @@ If `jf` is still using the system version instead of jfvm-managed version:
 ### Comparing Configuration Changes
 ```bash
 # Compare configuration differences between versions
-jfvm compare 2.74.0 2.73.0 -- config show --format json
+jfvm compare cli 2.74.0 2.73.0 -- config show --format json
 
 # Check if a specific feature works across versions
-jfvm compare old new -- rt search "libs-release-local/*.jar" --limit 5
+jfvm compare cli old new -- rt search "libs-release-local/*.jar" --limit 5
+
+# Compare release notes and changelogs
+jfvm compare changelog v2.75.1 v2.76.0
 ```
 
 ### Performance Analysis
@@ -338,7 +355,7 @@ jfvm history --version 2.74.0
 jfvm benchmark $OLD_VERSION,$NEW_VERSION -- rt ping --format json > performance.json
 
 # Compare outputs in automated testing
-jfvm compare baseline canary -- rt search "*.jar" --unified --no-color
+jfvm compare cli baseline canary --unified --no-color -- rt search "*.jar"
 
 # Always use the latest version in CI/CD pipelines
 jfvm use latest
