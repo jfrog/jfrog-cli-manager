@@ -91,13 +91,7 @@ jobs:
           
       - name: Add build summary
         run: |
-          ./.github/scripts/add-summary.sh build \
-            "${{ matrix.goos }}" \
-            "${{ matrix.goarch }}" \
-            "${{ steps.build.outputs.binary_size }}" \
-            "${{ needs.validate.outputs.tag }}" \
-            "$(date -u '+%Y-%m-%d_%H:%M:%S')" \
-            "$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
+          echo "✅ Built ${{ matrix.goos }}/${{ matrix.goarch }} - Size: ${{ steps.build.outputs.binary_size }} bytes"
           
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4.6.2
@@ -193,11 +187,7 @@ jobs:
           
       - name: Add release summary
         run: |
-          VERSION="${{ needs.validate.outputs.tag }}"
-          RELEASE_URL="https://github.com/${{ github.repository }}/releases/tag/$VERSION"
-          TOTAL_FILES="${{ steps.verify.outputs.total_files }}"
-          
-          ./.github/scripts/add-summary.sh release "$VERSION" "$TOTAL_FILES" "$RELEASE_URL"
+          echo "✅ Released ${{ needs.validate.outputs.tag }} with ${{ steps.verify.outputs.total_files }} files"
 
   homebrew_formula:
     name: Generate Homebrew formula
@@ -238,9 +228,7 @@ jobs:
           
       - name: Add Homebrew summary
         run: |
-          ./.github/scripts/add-summary.sh homebrew \
-            "${{ needs.validate.outputs.tag }}" \
-            "${{ steps.formula.outputs.formula_size }}"
+          echo "✅ Generated Homebrew formula for ${{ needs.validate.outputs.tag }}"
           
       - name: Upload Homebrew formula
         uses: actions/upload-artifact@v4.6.2

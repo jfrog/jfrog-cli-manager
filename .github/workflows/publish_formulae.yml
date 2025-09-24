@@ -1,51 +1,78 @@
 name: Publish Homebrew Formula
 
 on:
-  workflow_run:
-    workflows: ["Release jfvm to Homebrew"]
-    types:
-      - completed
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag to release (e.g., v1.0.0)'
+      version:
+        description: 'Version to publish (e.g., v1.0.0)'
         required: true
         type: string
 
 permissions:
-  contents: write
-  actions: read
+  contents: read
 
 jobs:
   publish:
-    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
-    env:
-      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout tap repository
-        uses: actions/checkout@v3
-        with:
-          repository: jfrog/homebrew-jfrog-cli-vm
-          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      - name: Download generated formula
-        uses: dawidd6/action-download-artifact@v6
-        with:
-          workflow: release.yml
-          name: jfvm.rb
-          workflow_conclusion: success
-          if_no_artifact_found: fail
-
-      - name: Move and commit formula
+      - name: Generate formula from release
         env:
-          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Validate version format
+          if [[ ! "$VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?$ ]]; then
+            echo "❌ Invalid version format: $VERSION"
+            exit 1
+          fi
+          
+          echo "📥 Downloading checksums for $VERSION..."
+          mkdir -p checksums && cd checksums
+          
+          # Download checksum files for Homebrew platforms
+          for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
+            gh release download "$VERSION" --pattern "jfvm-${VERSION}-${platform}.tar.gz.sha256"
+          done
+          
+          # Generate formula
+          ../.github/scripts/generate-homebrew-formula.sh \
+            "$VERSION" \
+            "${{ github.repository }}" \
+            "$(awk '{print $1}' jfvm-${VERSION}-darwin-amd64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfvm-${VERSION}-darwin-arm64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfvm-${VERSION}-linux-amd64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfvm-${VERSION}-linux-arm64.tar.gz.sha256)"
+
+      - name: Publish to tap
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [[ -z "$HOMEBREW_TAP_TOKEN" ]]; then
+            echo "❌ HOMEBREW_TAP_TOKEN not configured"
+            exit 1
+          fi
+          
+          VERSION="${{ github.event.inputs.version }}"
+          
+          # Clone and update tap
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git" tap
+          cd tap
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
           mkdir -p Formula
-          mv jfvm.rb Formula/jfvm.rb
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add Formula/jfvm.rb
-          git commit -m "Update jfvm formula for ${{ env.RELEASE_TAG }}"
-          git remote set-url origin https://x-access-token:${GH_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git
-          git push origin main
+          cp ../checksums/jfvm.rb Formula/jfvm.rb
+          
+          if ! git diff --quiet HEAD Formula/jfvm.rb 2>/dev/null; then
+            git add Formula/jfvm.rb
+            git commit -m "Update jfvm to $VERSION"
+            git push origin main
+            echo "✅ Published $VERSION to Homebrew tap"
+          else
+            echo "✅ Formula already up to date"
+          fi
