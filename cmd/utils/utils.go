@@ -778,3 +778,66 @@ func BlockVersion(version string) error {
 
 	return nil
 }
+
+func UnblockVersion(version string) error {
+	blocked, err := IsVersionBlocked(version)
+	if err != nil {
+		return err
+	}
+	if !blocked {
+		return fmt.Errorf("version %s is not blocked", version)
+	}
+
+	content, err := os.ReadFile(JfvmBlockFile)
+	if err != nil {
+		return fmt.Errorf("failed to read block file: %w", err)
+	}
+
+	blockedVersions := strings.Split(strings.TrimSpace(string(content)), "\n")
+	var newBlockedVersions []string
+
+	for _, blocked := range blockedVersions {
+		if strings.TrimSpace(blocked) != version {
+			newBlockedVersions = append(newBlockedVersions, strings.TrimSpace(blocked))
+		}
+	}
+
+	if len(newBlockedVersions) > 0 {
+		content := strings.Join(newBlockedVersions, "\n")
+		if err := os.WriteFile(JfvmBlockFile, []byte(content), 0644); err != nil {
+			return fmt.Errorf("failed to write block file: %w", err)
+		}
+	} else {
+		if err := os.Remove(JfvmBlockFile); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("failed to remove block file: %w", err)
+		}
+	}
+
+	return nil
+}
+
+func GetBlockedVersions() ([]string, error) {
+	if _, err := os.Stat(JfvmBlockFile); os.IsNotExist(err) {
+		return []string{}, nil
+	}
+
+	content, err := os.ReadFile(JfvmBlockFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read block file: %w", err)
+	}
+
+	contentStr := strings.TrimSpace(string(content))
+	if contentStr == "" {
+		return []string{}, nil
+	}
+
+	blockedVersions := strings.Split(contentStr, "\n")
+	var result []string
+	for _, version := range blockedVersions {
+		if trimmed := strings.TrimSpace(version); trimmed != "" {
+			result = append(result, trimmed)
+		}
+	}
+
+	return result, nil
+}
