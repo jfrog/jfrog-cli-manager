@@ -15,10 +15,10 @@ import (
 
 // Constants for configuration
 const (
-	DefaultPerPage = 30
-	DefaultTimeout = 30 * time.Second
-	UserAgent      = "jfvm/1.0"
-	MaxConcurrent  = 5
+	DefaultPerPage = 30               // GitHub API default page size
+	DefaultTimeout = 30 * time.Second // Reasonable timeout for API calls
+	UserAgent      = "jfvm/1.0"       // Identify our tool to GitHub
+	MaxConcurrent  = 5                // Max concurrent requests
 )
 
 // Shared HTTP client for better performance
@@ -132,7 +132,6 @@ func FetchTopReleasesNotes(ctx context.Context, owner, repo, fromTag, toTag stri
 	g.SetLimit(MaxConcurrent)
 	results := make([]noteResult, len(tags))
 	for i := range tags {
-		i := i
 		tag := tags[i]
 		g.Go(func() error {
 			rel, err := getReleaseByTag(gctx, owner, repo, tag)

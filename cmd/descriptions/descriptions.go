@@ -143,7 +143,7 @@ var Link = CommandDescription{
 
 var Compare = CommandDescription{
 	Usage:       "Compare JFrog CLI versions using subcommands",
-	Description: "Compare JFrog CLI versions with two specialized subcommands: 'changelog' for comparing release notes and 'cli' for comparing command execution outputs with git-like diff visualization.",
+	Description: "Compare JFrog CLI versions with three specialized subcommands: 'changelog' for comparing release notes, 'cli' for comparing command execution outputs between different CLI versions, and 'rt' for comparing command execution outputs between different servers with git-like diff visualization.",
 	Examples: []Example{
 		{
 			Command:     "jfvm compare changelog v2.75.1 v2.76.0",
@@ -158,8 +158,20 @@ var Compare = CommandDescription{
 			Description: "Compare command outputs using aliases",
 		},
 		{
+			Command:     "jfvm compare rt server1 server2 -- rt ping",
+			Description: "Compare rt ping command across two servers",
+		},
+		{
+			Command:     "jfvm compare rt prod dev -- rt search \"*.jar\"",
+			Description: "Compare search results across two server configurations",
+		},
+		{
 			Command:     "jfvm compare cli 2.74.0 2.73.0 -- config show --unified",
 			Description: "Show unified diff format for CLI comparison",
+		},
+		{
+			Command:     "jfvm compare rt server1 server2 -- config show --unified",
+			Description: "Show unified diff format for server comparison",
 		},
 		{
 			Command:     "jfvm compare changelog v2.74.0 v2.73.0 --no-color",
@@ -168,6 +180,10 @@ var Compare = CommandDescription{
 		{
 			Command:     "jfvm compare cli old new -- rt search \"*.jar\" --no-color --timing",
 			Description: "CLI comparison with custom formatting options",
+		},
+		{
+			Command:     "jfvm compare rt main backup -- rt repos show --timeout 60",
+			Description: "Server comparison with custom timeout",
 		},
 	},
 }
