@@ -691,3 +691,97 @@ func TestChangelogFunctionality(t *testing.T) {
 		}
 	})
 }
+
+// TestRTCompareFunctionality tests the RT compare functionality with --server-id flag
+func TestRTCompareFunctionality(t *testing.T) {
+	ts := SetupTestSuite(t)
+	defer ts.CleanupTestSuite(t)
+
+	t.Run("RT Compare Command Structure", func(t *testing.T) {
+		// Test RT compare command shows proper help
+		output, err := ts.RunCommand(t, "compare", "rt", "--help")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "Compare JFrog CLI command execution between two servers")
+		ts.AssertContains(t, output, "<server1> <server2> -- <jf-command>")
+		ts.AssertContains(t, output, "--unified")
+		ts.AssertContains(t, output, "--timeout")
+	})
+
+	t.Run("RT Compare Missing Arguments", func(t *testing.T) {
+		// Test missing server arguments
+		output, err := ts.RunCommand(t, "compare", "rt", "server1")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "insufficient arguments")
+
+		// Test missing separator
+		output, err = ts.RunCommand(t, "compare", "rt", "server1", "server2", "rt", "ping")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "missing '--' separator")
+
+		// Test missing command after separator
+		output, err = ts.RunCommand(t, "compare", "rt", "server1", "server2", "--")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "no command specified after '--'")
+	})
+
+	t.Run("RT Compare Invalid Separator Position", func(t *testing.T) {
+		// Test separator in wrong position
+		output, err := ts.RunCommand(t, "compare", "rt", "server1", "--", "server2", "rt", "ping")
+		ts.AssertFailure(t, output, err)
+		ts.AssertContains(t, output, "'--' separator must come after <server1> <server2>")
+	})
+
+	t.Run("RT Compare Command Execution", func(t *testing.T) {
+		// Test that the command structure is correct (we can't test actual execution without real servers)
+		// This test verifies the command parsing and argument validation works correctly
+		output, err := ts.RunCommand(t, "compare", "rt", "test-server1", "test-server2", "--", "rt", "ping")
+		// We expect this to fail because the servers don't exist, but the parsing should work
+		// The error should be about server connectivity, not argument parsing
+		if err == nil {
+			t.Error("Expected command to fail due to non-existent servers, but it succeeded")
+		}
+		// The output should not contain argument parsing errors
+		if strings.Contains(output, "insufficient arguments") ||
+			strings.Contains(output, "missing '--' separator") ||
+			strings.Contains(output, "no command specified") {
+			t.Errorf("Unexpected argument parsing error: %s", output)
+		}
+	})
+
+	t.Run("RT Compare With Complex Command", func(t *testing.T) {
+		// Test with a more complex command that has multiple arguments
+		output, err := ts.RunCommand(t, "compare", "rt", "server1", "server2", "--", "rt", "search", "*.jar", "--limit", "10")
+		// Again, we expect this to fail due to non-existent servers, not argument parsing
+		if err == nil {
+			t.Error("Expected command to fail due to non-existent servers, but it succeeded")
+		}
+		// Should not have argument parsing errors
+		if strings.Contains(output, "insufficient arguments") ||
+			strings.Contains(output, "missing '--' separator") ||
+			strings.Contains(output, "no command specified") {
+			t.Errorf("Unexpected argument parsing error: %s", output)
+		}
+	})
+
+	t.Run("RT Compare With Options", func(t *testing.T) {
+		// Test with various command options
+		output, err := ts.RunCommand(t, "compare", "rt", "server1", "server2", "--", "rt", "ping", "--timeout", "30", "--unified")
+		if err == nil {
+			t.Error("Expected command to fail due to non-existent servers, but it succeeded")
+		}
+		// Should not have argument parsing errors
+		if strings.Contains(output, "insufficient arguments") ||
+			strings.Contains(output, "missing '--' separator") ||
+			strings.Contains(output, "no command specified") {
+			t.Errorf("Unexpected argument parsing error: %s", output)
+		}
+	})
+
+	t.Run("RT Compare Help Examples", func(t *testing.T) {
+		// Test that help shows proper examples
+		output, err := ts.RunCommand(t, "compare", "rt", "--help")
+		ts.AssertSuccess(t, output, err)
+		ts.AssertContains(t, output, "jfvm compare rt server1 server2 -- rt ping")
+		ts.AssertContains(t, output, "Compare rt ping command across two servers")
+	})
+}

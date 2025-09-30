@@ -13,6 +13,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// Default constants for changelog comparison source
+const (
+	DefaultChangelogOwner = "jfrog"
+	DefaultChangelogRepo  = "jfrog-cli"
+)
+
 // VersionConfig holds version information after validation and resolution
 type VersionConfig struct {
 	Version1  string
@@ -55,6 +61,7 @@ var Compare = &cli.Command{
 	Subcommands: []*cli.Command{
 		CompareChangelog,
 		CompareCli,
+		CompareRt,
 	},
 }
 
@@ -176,6 +183,75 @@ var CompareCli = &cli.Command{
 	},
 }
 
+var CompareRt = &cli.Command{
+	Name:      "rt",
+	Usage:     "Compare JFrog CLI command execution between two servers",
+	ArgsUsage: "<server1> <server2> -- <jf-command> [args...]",
+	Flags: []cli.Flag{
+		&cli.BoolFlag{
+			Name:  "unified",
+			Usage: "Show unified diff format instead of side-by-side",
+			Value: false,
+		},
+		&cli.BoolFlag{
+			Name:  "no-color",
+			Usage: "Disable colored output",
+			Value: false,
+		},
+		&cli.IntFlag{
+			Name:  "timeout",
+			Usage: "Command timeout in seconds",
+			Value: 30,
+		},
+		&cli.BoolFlag{
+			Name:  "timing",
+			Usage: "Show execution timing information",
+			Value: true,
+		},
+	},
+	Action: func(c *cli.Context) error {
+		args := c.Args().Slice()
+
+		// Validate RT-specific arguments
+		server1, server2, jfCommand, err := validateRTArguments(args)
+		if err != nil {
+			return cli.Exit("Usage: jfvm compare rt <server1> <server2> -- <jf-command> [args...]", 1)
+		}
+
+		fmt.Printf("🔄 Comparing JFrog CLI command across servers: %s vs %s\n", server1, server2)
+		fmt.Printf("📝 Command: jf %s\n\n", strings.Join(jfCommand, " "))
+
+		// Execute commands against both servers in parallel
+		results := make([]ExecutionResult, 2)
+		g, ctx := errgroup.WithContext(context.Background())
+
+		timeout := time.Duration(c.Int("timeout")) * time.Second
+		timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
+		defer cancel()
+
+		g.Go(func() error {
+			result, err := executeJFCommandOnServer(timeoutCtx, server1, jfCommand)
+			results[0] = result
+			return err
+		})
+
+		g.Go(func() error {
+			result, err := executeJFCommandOnServer(timeoutCtx, server2, jfCommand)
+			results[1] = result
+			return err
+		})
+
+		if err := g.Wait(); err != nil {
+			fmt.Fprintf(os.Stderr, "⚠️  Warning: %v\n\n", err)
+		}
+
+		// Display results
+		displayComparison(results[0], results[1], c.Bool("unified"), c.Bool("no-color"), c.Bool("timing"))
+
+		return nil
+	},
+}
+
 func handleChangelogComparison(c *cli.Context, version1, version2, resolved1, resolved2 string) error {
 	fmt.Printf("📖 Comparing Release Notes: %s vs %s\n", version1, version2)
 	fmt.Printf("🔍 Fetching changelog between versions...\n\n")
@@ -188,9 +264,8 @@ func handleChangelogComparison(c *cli.Context, version1, version2, resolved1, re
 	startTime := time.Now()
 
 	// Call FetchTopReleasesNotes() to get changelog data
-	// Using "jfrog" as owner and "jfrog-cli" as repo (adjust these as needed)
-	owner := "jfrog"
-	repo := "jfrog-cli"
+	owner := DefaultChangelogOwner
+	repo := DefaultChangelogRepo
 
 	// Ensure tags have "v" prefix for GitHub API
 	fromTag := resolved1

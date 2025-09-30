@@ -148,6 +148,23 @@ jfvm compare cli 2.74.0 2.73.0 --unified -- config show
 jfvm compare cli old new --no-color --timing -- rt search "*.jar"
 ```
 
+##### Server Comparison (`jfvm compare rt`)
+Compare JFrog CLI command execution between different server configurations.
+
+```bash
+# Compare rt ping command across two servers
+jfvm compare rt server1 server2 -- rt ping
+
+# Compare search results across server configurations
+jfvm compare rt prod dev -- rt search "*.jar"
+
+# Show unified diff format for server comparison
+jfvm compare rt server1 server2 -- config show --unified
+
+# Server comparison with custom timeout
+jfvm compare rt main backup -- rt repos show --timeout 60
+```
+
 ##### Changelog Comparison (`jfvm compare changelog`)
 Compare release notes and changelogs between two JFrog CLI versions.
 
