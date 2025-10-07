@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/jfrog/jfrog-cli-vm/cmd"
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/cmd"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
 	"github.com/urfave/cli/v2"
 )
 

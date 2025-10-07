@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
-	"github.com/jfrog/jfrog-cli-vm/internal"
+	"github.com/jfrog/jfrog-cli-manager/cmd/descriptions"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/internal"
 	"github.com/urfave/cli/v2"
 )
 

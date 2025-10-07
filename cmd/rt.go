@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
 )
 
 // validateRTArguments validates RT-specific arguments and returns server names and command parts

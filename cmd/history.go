@@ -14,8 +14,8 @@ import (
 	"github.com/NimbleMarkets/ntcharts/barchart"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/fatih/color"
-	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/cmd/descriptions"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
 	"github.com/olekukonko/tablewriter"
 	"github.com/urfave/cli/v2"
 )

@@ -126,7 +126,7 @@ jobs:
       - name: Install jfcm via Homebrew
         run: |
           # Add the jfrog tap
-          brew tap jfrog/jfrog-cli-vm
+          brew tap jfrog/jfrog-cli-manager
           
           # Install jfcm
           brew install jfcm
@@ -199,7 +199,7 @@ jobs:
           brew uninstall jfcm || true
           
           # Remove tap
-          brew untap jfrog/jfrog-cli-vm || true
+          brew untap jfrog/jfrog-cli-manager || true
 
   test-integration:
     runs-on: ubuntu-latest

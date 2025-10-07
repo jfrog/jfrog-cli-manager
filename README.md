@@ -1,9 +1,9 @@
-# jfcm - JFrog CLI Version Manager
+# jfcm - JFrog CLI Manager
 
-[![CI](https://github.com/jfrog/jfrog-cli-vm/actions/workflows/release.yml/badge.svg)](https://github.com/jfrog/jfrog-cli-vm/actions/workflows/release.yml)
-[![Latest Release](https://img.shields.io/github/v/release/jfrog/jfrog-cli-vm)](https://github.com/jfrog/jfrog-cli-vm/releases)
-[![License](https://img.shields.io/github/license/jfrog/jfrog-cli-vm)](https://github.com/jfrog/jfrog-cli-vm/blob/main/LICENSE)
-[![homebrew installs](https://img.shields.io/badge/homebrew-installs-brightgreen?logo=homebrew)](https://github.com/jfrog/homebrew-jfrog-cli-vm)
+[![CI](https://github.com/jfrog/jfrog-cli-manager/actions/workflows/release.yml/badge.svg)](https://github.com/jfrog/jfrog-cli-manager/actions/workflows/release.yml)
+[![Latest Release](https://img.shields.io/github/v/release/jfrog/jfrog-cli-manager)](https://github.com/jfrog/jfrog-cli-manager/releases)
+[![License](https://img.shields.io/github/license/jfrog/jfrog-cli-manager)](https://github.com/jfrog/jfrog-cli-manager/blob/main/LICENSE)
+[![homebrew installs](https://img.shields.io/badge/homebrew-installs-brightgreen?logo=homebrew)](https://github.com/jfrog/homebrew-jfrog-cli-manager)
 
 **jfcm** is a powerful CLI tool that helps you manage multiple versions of the [JFrog CLI](https://jfrog.com/getcli/) on your system. It supports auto-installation, version switching, project-specific defaults, local binary linking, aliasing, parallel version comparison, performance benchmarking, and usage analytics — all inspired by tools like `nvm`, `sdkman`, and `volta`.
 
@@ -36,23 +36,23 @@ No more symlink hacking or hardcoded paths.
 
 ### Via Homebrew (with tap):
 ```bash
-brew tap jfrog/jfrog-cli-vm
+brew tap jfrog/jfrog-cli-manager
 brew install jfcm
 ```
 
 ### Via one-liner:
 ```bash
-brew install https://raw.githubusercontent.com/jfrog/homebrew-jfrog-cli-vm/main/Formula/jfcm.rb
+brew install https://raw.githubusercontent.com/jfrog/homebrew-jfrog-cli-manager/main/Formula/jfcm.rb
 ```
 
 ### Or Build From Source:
 ```bash
-git clone https://github.com/jfrog/jfrog-cli-vm.git
-cd jfrog-cli-vm
+git clone https://github.com/jfrog/jfrog-cli-manager.git
+cd jfrog-cli-manager
 make install
 ```
 
-**Note**: Use `make build` instead of `go build` to ensure the executable is named `jfcm` (not `jfrog-cli-vm`).
+**Note**: Use `make build` instead of `go build` to ensure the executable is named `jfcm` (not `jfrog-cli-manager`).
 
 ---
 
@@ -439,4 +439,4 @@ brew uninstall jfcm
 ## 📬 Feedback / Contributions
 PRs and issues welcome! Open source, MIT licensed.
 
-**GitHub:** https://github.com/jfrog/jfrog-cli-vm
+**GitHub:** https://github.com/jfrog/jfrog-cli-manager

@@ -52,7 +52,7 @@ jobs:
           cat /etc/shells || echo "Cannot read /etc/shells"
           
           # Add the jfrog tap
-          brew tap jfrog/jfrog-cli-vm || echo "Tap already exists or failed"
+          brew tap jfrog/jfrog-cli-manager || echo "Tap already exists or failed"
           
           # Install jfcm
           brew install jfcm || echo "Installation failed, trying to continue"
@@ -230,4 +230,4 @@ jobs:
           brew uninstall jfcm || true
           
           # Remove tap
-          brew untap jfrog/jfrog-cli-vm || true 
+          brew untap jfrog/jfrog-cli-manager || true 

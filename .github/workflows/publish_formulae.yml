@@ -59,7 +59,7 @@ jobs:
           VERSION="${{ github.event.inputs.version }}"
           
           # Clone and update tap
-          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-vm.git" tap
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/jfrog/homebrew-jfrog-cli-manager.git" tap
           cd tap
           
           git config user.name "github-actions[bot]"

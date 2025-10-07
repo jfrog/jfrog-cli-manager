@@ -1,4 +1,4 @@
-module github.com/jfrog/jfrog-cli-vm
+module github.com/jfrog/jfrog-cli-manager
 
 go 1.24
 

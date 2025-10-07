@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/fatih/color"
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
 )
 
 // Constants for CLI comparison functionality

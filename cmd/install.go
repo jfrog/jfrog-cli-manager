@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 
-	"github.com/jfrog/jfrog-cli-vm/internal"
+	"github.com/jfrog/jfrog-cli-manager/internal"
 	"github.com/urfave/cli/v2"
 )
 

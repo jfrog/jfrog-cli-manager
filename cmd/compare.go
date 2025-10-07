@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/jfrog/jfrog-cli-vm/cmd/descriptions"
-	"github.com/jfrog/jfrog-cli-vm/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/cmd/descriptions"
+	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
 	"github.com/urfave/cli/v2"
 	"golang.org/x/sync/errgroup"
 )
