@@ -25,7 +25,7 @@ var Link = &cli.Command{
 			return fmt.Errorf("no such file: %s", from)
 		}
 
-		targetDir := filepath.Join(utils.jfcmVersions, name)
+		targetDir := filepath.Join(utils.JFCMVersions, name)
 		targetBin := filepath.Join(targetDir, utils.BinaryName)
 		err := os.MkdirAll(targetDir, 0755)
 		if err != nil {

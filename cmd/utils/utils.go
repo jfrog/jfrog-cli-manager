@@ -26,21 +26,21 @@ const (
 
 var (
 	HomeDir       = os.Getenv("HOME")
-	jfcmRoot      = filepath.Join(HomeDir, "."+ToolName)
-	jfcmConfig    = filepath.Join(jfcmRoot, ConfigFile)
-	jfcmVersions  = filepath.Join(jfcmRoot, VersionsDir)
-	jfcmAliases   = filepath.Join(jfcmRoot, AliasesDir)
-	jfcmShim      = filepath.Join(jfcmRoot, ShimDir)
-	jfcmBlockFile = filepath.Join(jfcmRoot, BlockFile)
+	JFCMRoot      = filepath.Join(HomeDir, "."+ToolName)
+	JFCMConfig    = filepath.Join(JFCMRoot, ConfigFile)
+	JFCMVersions  = filepath.Join(JFCMRoot, VersionsDir)
+	JFCMAliases   = filepath.Join(JFCMRoot, AliasesDir)
+	JFCMShim      = filepath.Join(JFCMRoot, ShimDir)
+	JFCMBlockFile = filepath.Join(JFCMRoot, BlockFile)
 )
 
 // InitializejfcmDirectories creates the necessary jfcm directories if they don't exist
 func InitializejfcmDirectories() error {
 	directories := []string{
-		jfcmRoot,
-		jfcmVersions,
-		jfcmAliases,
-		jfcmShim,
+		JFCMRoot,
+		JFCMVersions,
+		JFCMAliases,
+		JFCMShim,
 	}
 
 	for _, dir := range directories {
@@ -81,7 +81,7 @@ func ResolveAlias(name string) (string, error) {
 
 // GetAliasData reads and parses alias data from the alias file
 func GetAliasData(aliasName string) (*AliasData, error) {
-	path := filepath.Join(jfcmAliases, aliasName)
+	path := filepath.Join(JFCMAliases, aliasName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func ResolveVersionOrAlias(name string) (string, error) {
 
 // CheckVersionExists verifies that a version directory and binary exist
 func CheckVersionExists(version string) error {
-	versionDir := filepath.Join(jfcmVersions, version)
+	versionDir := filepath.Join(JFCMVersions, version)
 	binaryPath := filepath.Join(versionDir, BinaryName)
 
 	// Check if version directory exists
@@ -261,11 +261,11 @@ func getLatestVersionFromJFrogReleases() (string, error) {
 // SetupShim creates the jf shim that will redirect to the active version
 func SetupShim() error {
 	// Create shim directory if it doesn't exist
-	if err := os.MkdirAll(jfcmShim, 0755); err != nil {
+	if err := os.MkdirAll(JFCMShim, 0755); err != nil {
 		return fmt.Errorf("failed to create shim directory: %w", err)
 	}
 
-	shimPath := filepath.Join(jfcmShim, BinaryName)
+	shimPath := filepath.Join(JFCMShim, BinaryName)
 
 	// Create shim script content based on platform
 	var shimContent string
@@ -436,7 +436,7 @@ const (
 // UpdatePATH updates the user's shell profile to include jfcm shim in PATH with highest priority
 func UpdatePATH() error {
 	// First, clean up the old bin directory if it exists
-	oldBinDir := filepath.Join(jfcmRoot, "bin")
+	oldBinDir := filepath.Join(JFCMRoot, "bin")
 	if _, err := os.Stat(oldBinDir); err == nil {
 		fmt.Printf("Removing old bin directory: %s\n", oldBinDir)
 		if err := os.RemoveAll(oldBinDir); err != nil {
@@ -462,7 +462,7 @@ func UpdatePATH() error {
 	// Check if the correct jfcm block already exists
 	expectedBlock := fmt.Sprintf(`# >>> jfcm PATH (managed by jfcm)
 export PATH="%s:$PATH"
-# <<< jfcm PATH (managed by jfcm)`, jfcmShim)
+# <<< jfcm PATH (managed by jfcm)`, JFCMShim)
 
 	// Check if the expected block is already present
 	if strings.Contains(profileContent, expectedBlock) {
@@ -477,7 +477,7 @@ export PATH="%s:$PATH"
 	block := fmt.Sprintf(`# >>> jfcm PATH (managed by jfcm)
 export PATH="%s:$PATH"
 # <<< jfcm PATH (managed by jfcm)
-`, jfcmShim)
+`, JFCMShim)
 
 	// Ensure proper formatting: trim trailing whitespace and add newline if needed
 	profileContent = strings.TrimRight(profileContent, "\n\r\t ")
@@ -571,11 +571,11 @@ func GetShellProfile(shell string) string {
 
 // GetActiveVersion returns the currently active version
 func GetActiveVersion() (string, error) {
-	if _, err := os.Stat(jfcmConfig); os.IsNotExist(err) {
+	if _, err := os.Stat(JFCMConfig); os.IsNotExist(err) {
 		return "", fmt.Errorf("no active version set")
 	}
 
-	content, err := os.ReadFile(jfcmConfig)
+	content, err := os.ReadFile(JFCMConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to read config: %w", err)
 	}
@@ -590,7 +590,7 @@ func GetActiveBinaryPath() (string, error) {
 		return "", err
 	}
 
-	binaryPath := filepath.Join(jfcmVersions, version, BinaryName)
+	binaryPath := filepath.Join(JFCMVersions, version, BinaryName)
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("active version %s not found", version)
 	}
@@ -600,7 +600,7 @@ func GetActiveBinaryPath() (string, error) {
 
 // CheckShimSetup checks if the shim is properly set up
 func CheckShimSetup() error {
-	shimPath := filepath.Join(jfcmShim, BinaryName)
+	shimPath := filepath.Join(JFCMShim, BinaryName)
 	if _, err := os.Stat(shimPath); os.IsNotExist(err) {
 		return fmt.Errorf("shim not found at %s", shimPath)
 	}
@@ -658,13 +658,13 @@ func VerifyPriority() error {
 // SwitchToVersion switches to the specified version for command execution
 func SwitchToVersion(version string) error {
 	// Check if version exists
-	binPath := filepath.Join(jfcmVersions, version, BinaryName)
+	binPath := filepath.Join(JFCMVersions, version, BinaryName)
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
 		return fmt.Errorf("version %s not found", version)
 	}
 
 	// Write the version to config file
-	if err := os.WriteFile(jfcmConfig, []byte(version), 0644); err != nil {
+	if err := os.WriteFile(JFCMConfig, []byte(version), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -725,11 +725,11 @@ func ValidateVersionAgainstProject(targetVersion string, versionExplicitlyProvid
 }
 
 func IsVersionBlocked(version string) (bool, error) {
-	if _, err := os.Stat(jfcmBlockFile); os.IsNotExist(err) {
+	if _, err := os.Stat(JFCMBlockFile); os.IsNotExist(err) {
 		return false, nil
 	}
 
-	content, err := os.ReadFile(jfcmBlockFile)
+	content, err := os.ReadFile(JFCMBlockFile)
 	if err != nil {
 		return false, fmt.Errorf("failed to read block file: %w", err)
 	}
@@ -759,8 +759,8 @@ func BlockVersion(version string) error {
 	}
 
 	var blockedVersions []string
-	if _, err := os.Stat(jfcmBlockFile); err == nil {
-		content, err := os.ReadFile(jfcmBlockFile)
+	if _, err := os.Stat(JFCMBlockFile); err == nil {
+		content, err := os.ReadFile(JFCMBlockFile)
 		if err != nil {
 			return fmt.Errorf("failed to read block file: %w", err)
 		}
@@ -772,7 +772,7 @@ func BlockVersion(version string) error {
 	blockedVersions = append(blockedVersions, version)
 
 	content := strings.Join(blockedVersions, "\n")
-	if err := os.WriteFile(jfcmBlockFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(JFCMBlockFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write block file: %w", err)
 	}
 
@@ -788,7 +788,7 @@ func UnblockVersion(version string) error {
 		return fmt.Errorf("version %s is not blocked", version)
 	}
 
-	content, err := os.ReadFile(jfcmBlockFile)
+	content, err := os.ReadFile(JFCMBlockFile)
 	if err != nil {
 		return fmt.Errorf("failed to read block file: %w", err)
 	}
@@ -804,11 +804,11 @@ func UnblockVersion(version string) error {
 
 	if len(newBlockedVersions) > 0 {
 		content := strings.Join(newBlockedVersions, "\n")
-		if err := os.WriteFile(jfcmBlockFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(JFCMBlockFile, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write block file: %w", err)
 		}
 	} else {
-		if err := os.Remove(jfcmBlockFile); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(JFCMBlockFile); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to remove block file: %w", err)
 		}
 	}
@@ -817,11 +817,11 @@ func UnblockVersion(version string) error {
 }
 
 func GetBlockedVersions() ([]string, error) {
-	if _, err := os.Stat(jfcmBlockFile); os.IsNotExist(err) {
+	if _, err := os.Stat(JFCMBlockFile); os.IsNotExist(err) {
 		return []string{}, nil
 	}
 
-	content, err := os.ReadFile(jfcmBlockFile)
+	content, err := os.ReadFile(JFCMBlockFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read block file: %w", err)
 	}

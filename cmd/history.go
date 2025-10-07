@@ -115,7 +115,7 @@ var History = &cli.Command{
 			}
 		}
 
-		historyFile := filepath.Join(utils.jfcmRoot, "history.json")
+		historyFile := filepath.Join(utils.JFCMRoot, "history.json")
 
 		entries, err := loadHistory(historyFile)
 		if err != nil && !os.IsNotExist(err) {
@@ -204,7 +204,7 @@ func AddHistoryEntry(version, command string, duration time.Duration, exitCode i
 		return
 	}
 
-	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
+	historyFile := filepath.Join(utils.JFCMRoot, "history.json")
 
 	entries, err := loadHistory(historyFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -861,7 +861,7 @@ func createTimelineSection(entries []HistoryEntry, boxStyle lipgloss.Style, prim
 }
 
 func executeHistoryEntry(id int) error {
-	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
+	historyFile := filepath.Join(utils.JFCMRoot, "history.json")
 	entries, err := loadHistory(historyFile)
 	if err != nil {
 		return fmt.Errorf("failed to load history: %w", err)
@@ -904,7 +904,7 @@ func executeHistoryEntry(id int) error {
 }
 
 func clearHistory() error {
-	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
+	historyFile := filepath.Join(utils.JFCMRoot, "history.json")
 
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
 		fmt.Println("📭 No history file found.")

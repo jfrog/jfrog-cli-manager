@@ -42,7 +42,7 @@ func DownloadAndInstall(version string) error {
 	url := fmt.Sprintf("https://releases.jfrog.io/artifactory/jfrog-cli/v2-jf/%s/jfrog-cli-%s/jf", version, platform)
 	fmt.Printf("📥 Downloading from: %s\n", url)
 
-	dir := filepath.Join(utils.jfcmVersions, version)
+	dir := filepath.Join(utils.JFCMVersions, version)
 	os.MkdirAll(dir, 0755)
 	binPath := filepath.Join(dir, utils.BinaryName)
 

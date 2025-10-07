@@ -108,7 +108,7 @@ func executeJFCommand(ctx context.Context, version string, jfCommand []string) (
 		StartTime: time.Now(),
 	}
 
-	binPath := filepath.Join(utils.jfcmVersions, version, utils.BinaryName)
+	binPath := filepath.Join(utils.JFCMVersions, version, utils.BinaryName)
 
 	cmd := exec.CommandContext(ctx, binPath, jfCommand...)
 

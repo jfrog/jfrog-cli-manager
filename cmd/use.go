@@ -38,7 +38,7 @@ var Use = &cli.Command{
 				fmt.Printf("Latest version: %s\n", version)
 
 				// Check if latest version is already installed
-				binPath := filepath.Join(utils.jfcmVersions, version, utils.BinaryName)
+				binPath := filepath.Join(utils.JFCMVersions, version, utils.BinaryName)
 				if _, err := os.Stat(binPath); os.IsNotExist(err) {
 					fmt.Printf("Latest version %s not found locally. Downloading...\n", version)
 					if err := internal.DownloadAndInstall(version); err != nil {
@@ -92,7 +92,7 @@ var Use = &cli.Command{
 
 		// For non-latest versions, check if binary exists and install if needed
 		if c.Args().Len() == 0 || strings.ToLower(c.Args().Get(0)) != "latest" {
-			binPath := filepath.Join(utils.jfcmVersions, version, utils.BinaryName)
+			binPath := filepath.Join(utils.JFCMVersions, version, utils.BinaryName)
 			fmt.Printf("Checking if binary exists at: %s\n", binPath)
 
 			if _, err := os.Stat(binPath); os.IsNotExist(err) {
@@ -107,8 +107,8 @@ var Use = &cli.Command{
 			return cli.Exit(fmt.Sprintf("%v", err), 1)
 		}
 
-		fmt.Printf("Writing selected version '%s' to config file: %s\n", version, utils.jfcmConfig)
-		if err := os.WriteFile(utils.jfcmConfig, []byte(version), 0644); err != nil {
+		fmt.Printf("Writing selected version '%s' to config file: %s\n", version, utils.JFCMConfig)
+		if err := os.WriteFile(utils.JFCMConfig, []byte(version), 0644); err != nil {
 			return fmt.Errorf("failed to write config file: %w", err)
 		}
 

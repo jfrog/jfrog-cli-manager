@@ -40,7 +40,7 @@ var Alias = &cli.Command{
 					return cli.Exit("'latest' is a reserved keyword and cannot be used as an alias", 1)
 				}
 
-				os.MkdirAll(utils.jfcmAliases, 0755)
+				os.MkdirAll(utils.JFCMAliases, 0755)
 
 				aliasData := utils.AliasData{
 					Version:     version,
@@ -52,7 +52,7 @@ var Alias = &cli.Command{
 					return fmt.Errorf("failed to encode alias data: %w", err)
 				}
 
-				return os.WriteFile(filepath.Join(utils.jfcmAliases, alias), data, 0644)
+				return os.WriteFile(filepath.Join(utils.JFCMAliases, alias), data, 0644)
 			},
 		},
 		{
@@ -107,7 +107,7 @@ var Alias = &cli.Command{
 				if c.Args().Len() != 1 {
 					return cli.Exit("Usage: jfcm alias remove <alias>", 1)
 				}
-				return os.Remove(filepath.Join(utils.jfcmAliases, c.Args().Get(0)))
+				return os.Remove(filepath.Join(utils.JFCMAliases, c.Args().Get(0)))
 			},
 		},
 		{
@@ -129,13 +129,13 @@ var Alias = &cli.Command{
 
 func listAliases(noColor bool) error {
 	// Check if aliases directory exists
-	if _, err := os.Stat(utils.jfcmAliases); os.IsNotExist(err) {
+	if _, err := os.Stat(utils.JFCMAliases); os.IsNotExist(err) {
 		fmt.Println("No aliases configured yet.")
 		return nil
 	}
 
 	// Read all files from aliases directory
-	entries, err := os.ReadDir(utils.jfcmAliases)
+	entries, err := os.ReadDir(utils.JFCMAliases)
 	if err != nil {
 		return fmt.Errorf("failed to read aliases directory: %w", err)
 	}

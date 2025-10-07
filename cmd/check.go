@@ -244,11 +244,11 @@ func checkSystemEnvironment(report *HealthReport, verbose bool) {
 func checkjfcmInstallation(report *HealthReport, verbose bool) {
 	// Check jfcm root directory
 	status := HealthStatus{Component: "jfcm Root Directory"}
-	if _, err := os.Stat(utils.jfcmRoot); err == nil {
+	if _, err := os.Stat(utils.JFCMRoot); err == nil {
 		status.Status = "pass"
 		status.Message = "jfcm root directory exists"
 		if verbose {
-			status.Details = utils.jfcmRoot
+			status.Details = utils.JFCMRoot
 		}
 	} else {
 		status.Status = "fail"
@@ -260,7 +260,7 @@ func checkjfcmInstallation(report *HealthReport, verbose bool) {
 
 	// Check versions directory
 	status = HealthStatus{Component: "Versions Directory"}
-	if _, err := os.Stat(utils.jfcmVersions); err == nil {
+	if _, err := os.Stat(utils.JFCMVersions); err == nil {
 		status.Status = "pass"
 		status.Message = "Versions directory exists"
 	} else {
@@ -272,7 +272,7 @@ func checkjfcmInstallation(report *HealthReport, verbose bool) {
 
 	// Check aliases directory
 	status = HealthStatus{Component: "Aliases Directory"}
-	if _, err := os.Stat(utils.jfcmAliases); err == nil {
+	if _, err := os.Stat(utils.JFCMAliases); err == nil {
 		status.Status = "pass"
 		status.Message = "Aliases directory exists"
 	} else {
@@ -286,7 +286,7 @@ func checkjfcmInstallation(report *HealthReport, verbose bool) {
 func checkShimSetup(report *HealthReport, verbose bool, fix bool) {
 	// Check shim directory
 	status := HealthStatus{Component: "Shim Directory"}
-	if _, err := os.Stat(utils.jfcmShim); err == nil {
+	if _, err := os.Stat(utils.JFCMShim); err == nil {
 		status.Status = "pass"
 		status.Message = "Shim directory exists"
 	} else {
@@ -299,7 +299,7 @@ func checkShimSetup(report *HealthReport, verbose bool, fix bool) {
 
 	// Check shim binary
 	status = HealthStatus{Component: "Shim Binary"}
-	shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
+	shimPath := filepath.Join(utils.JFCMShim, utils.BinaryName)
 	if _, err := os.Stat(shimPath); err == nil {
 		status.Status = "pass"
 		status.Message = "Shim binary exists"
@@ -357,11 +357,11 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 		status.Status = "fail"
 		status.Message = "jf binary not found in PATH"
 	} else {
-		shimDir := filepath.Clean(utils.jfcmShim)
+		shimDir := filepath.Clean(utils.JFCMShim)
 		jfDir := filepath.Clean(filepath.Dir(jfPath))
 		if verbose {
 			fmt.Printf("[DEBUG] which jf: %s\n", jfPath)
-			fmt.Printf("[DEBUG] utils.jfcmShim: %s\n", shimDir)
+			fmt.Printf("[DEBUG] utils.JFCMShim: %s\n", shimDir)
 			fmt.Printf("[DEBUG] filepath.Dir(jfPath): %s\n", jfDir)
 		}
 		if jfDir == shimDir {
@@ -545,7 +545,7 @@ func checkActiveVersion(report *HealthReport, verbose bool) {
 		status.Message = fmt.Sprintf("Active version: %s", activeVersion)
 
 		// Check if binary exists
-		binaryPath := filepath.Join(utils.jfcmVersions, activeVersion, utils.BinaryName)
+		binaryPath := filepath.Join(utils.JFCMVersions, activeVersion, utils.BinaryName)
 		if _, err := os.Stat(binaryPath); err == nil {
 			status.Details = "Binary exists"
 		} else {
@@ -559,7 +559,7 @@ func checkActiveVersion(report *HealthReport, verbose bool) {
 
 	// Check installed versions
 	status = HealthStatus{Component: "Installed Versions"}
-	if entries, err := os.ReadDir(utils.jfcmVersions); err == nil {
+	if entries, err := os.ReadDir(utils.JFCMVersions); err == nil {
 		count := len(entries)
 		if count > 0 {
 			status.Status = "pass"
@@ -698,7 +698,7 @@ func checkPerformance(report *HealthReport, verbose bool) {
 func checkSecurity(report *HealthReport, verbose bool) {
 	// Check file permissions
 	status := HealthStatus{Component: "File Permissions"}
-	shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
+	shimPath := filepath.Join(utils.JFCMShim, utils.BinaryName)
 	if info, err := os.Stat(shimPath); err == nil {
 		mode := info.Mode()
 		if mode&0077 == 0 { // No world/group write permissions
@@ -719,7 +719,7 @@ func checkSecurity(report *HealthReport, verbose bool) {
 	// Check for suspicious files
 	status = HealthStatus{Component: "Suspicious Files"}
 	suspiciousFound := false
-	if entries, err := os.ReadDir(utils.jfcmRoot); err == nil {
+	if entries, err := os.ReadDir(utils.JFCMRoot); err == nil {
 		for _, entry := range entries {
 			if strings.HasSuffix(entry.Name(), ".exe") || strings.HasSuffix(entry.Name(), ".sh") {
 				if !strings.Contains(entry.Name(), "jf") && !strings.Contains(entry.Name(), "jfcm") {
@@ -768,14 +768,14 @@ func attemptFixes(report *HealthReport) {
 
 			switch check.Component {
 			case "jfcm Root Directory":
-				if err := os.MkdirAll(utils.jfcmRoot, 0755); err == nil {
+				if err := os.MkdirAll(utils.JFCMRoot, 0755); err == nil {
 					fmt.Printf("    ✅ Created jfcm root directory\n")
 					fixesApplied = true
 				} else {
 					fmt.Printf("    ❌ Failed to create jfcm root directory: %v\n", err)
 				}
 			case "Shim Directory":
-				if err := os.MkdirAll(utils.jfcmShim, 0755); err == nil {
+				if err := os.MkdirAll(utils.JFCMShim, 0755); err == nil {
 					fmt.Printf("    ✅ Created shim directory\n")
 					fixesApplied = true
 				} else {
@@ -789,7 +789,7 @@ func attemptFixes(report *HealthReport) {
 					fmt.Printf("    ❌ Failed to create shim binary: %v\n", err)
 				}
 			case "Shim Permissions":
-				shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
+				shimPath := filepath.Join(utils.JFCMShim, utils.BinaryName)
 				if err := os.Chmod(shimPath, 0755); err == nil {
 					fmt.Printf("    ✅ Fixed shim permissions\n")
 					fixesApplied = true
