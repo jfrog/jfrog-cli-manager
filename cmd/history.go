@@ -95,7 +95,7 @@ var History = &cli.Command{
 		},
 		&cli.BoolFlag{
 			Name:  "disable-recording",
-			Usage: "Disable history recording (set JFVM_NO_HISTORY=1 for permanent disable)",
+			Usage: "Disable history recording (set jfcm_NO_HISTORY=1 for permanent disable)",
 			Value: false,
 		},
 	},
@@ -115,7 +115,7 @@ var History = &cli.Command{
 			}
 		}
 
-		historyFile := filepath.Join(utils.JfvmRoot, "history.json")
+		historyFile := filepath.Join(utils.jfcmRoot, "history.json")
 
 		entries, err := loadHistory(historyFile)
 		if err != nil && !os.IsNotExist(err) {
@@ -199,12 +199,12 @@ func saveHistory(historyFile string, entries []HistoryEntry) error {
 }
 
 func AddHistoryEntry(version, command string, duration time.Duration, exitCode int, stdout, stderr string) {
-	// Skip recording jfvm commands - only record actual jf commands
-	if strings.HasPrefix(command, "jfvm ") {
+	// Skip recording jfcm commands - only record actual jf commands
+	if strings.HasPrefix(command, "jfcm ") {
 		return
 	}
 
-	historyFile := filepath.Join(utils.JfvmRoot, "history.json")
+	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
 
 	entries, err := loadHistory(historyFile)
 	if err != nil && !os.IsNotExist(err) {
@@ -317,7 +317,7 @@ func displayHistoryTable(entries []HistoryEntry, showOutput bool) {
 		boldColor  = color.New(color.Bold)
 	)
 
-	fmt.Printf("📊 JFVM USAGE HISTORY\n")
+	fmt.Printf("📊 jfcm USAGE HISTORY\n")
 	fmt.Printf("═══════════════════════════════════════════════════════════════════════════════════\n\n")
 
 	// Create table with basic configuration
@@ -473,7 +473,7 @@ func displayEnhancedStats(stats map[string]*VersionStats, totalCommands map[stri
 	}
 
 	// Main title
-	fmt.Println(titleStyle.Render("📊 JFVM USAGE STATISTICS"))
+	fmt.Println(titleStyle.Render("📊 jfcm USAGE STATISTICS"))
 
 	// Create layout sections
 	sections := []string{}
@@ -861,7 +861,7 @@ func createTimelineSection(entries []HistoryEntry, boxStyle lipgloss.Style, prim
 }
 
 func executeHistoryEntry(id int) error {
-	historyFile := filepath.Join(utils.JfvmRoot, "history.json")
+	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
 	entries, err := loadHistory(historyFile)
 	if err != nil {
 		return fmt.Errorf("failed to load history: %w", err)
@@ -904,7 +904,7 @@ func executeHistoryEntry(id int) error {
 }
 
 func clearHistory() error {
-	historyFile := filepath.Join(utils.JfvmRoot, "history.json")
+	historyFile := filepath.Join(utils.jfcmRoot, "history.json")
 
 	if _, err := os.Stat(historyFile); os.IsNotExist(err) {
 		fmt.Println("📭 No history file found.")

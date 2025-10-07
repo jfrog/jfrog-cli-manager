@@ -42,7 +42,7 @@ jobs:
             fi
           done
 
-      - name: Install jfvm via Homebrew
+      - name: Install jfcm via Homebrew
         run: |
           # Debug: Check shell environment
           echo "=== Shell Environment Check ==="
@@ -54,24 +54,24 @@ jobs:
           # Add the jfrog tap
           brew tap jfrog/jfrog-cli-vm || echo "Tap already exists or failed"
           
-          # Install jfvm
-          brew install jfvm || echo "Installation failed, trying to continue"
+          # Install jfcm
+          brew install jfcm || echo "Installation failed, trying to continue"
           
           # Verify installation
-          jfvm --version || echo "jfvm not found in PATH"
+          jfcm --version || echo "jfcm not found in PATH"
 
       - name: Install test jf binary
         run: |
           # Install a test version of jf for testing
-          jfvm install 2.74.0
+          jfcm install 2.74.0
           
           # Verify jf binary exists
-          ls -la ~/.jfvm/versions/2.74.0/jf
+          ls -la ~/.jfcm/versions/2.74.0/jf
           
           # Test the binary directly
-          ~/.jfvm/versions/2.74.0/jf --version
+          ~/.jfcm/versions/2.74.0/jf --version
 
-          jfvm health-check --fix --verbose
+          jfcm health-check --fix --verbose
 
       - name: Setup shell environment
         run: |
@@ -81,34 +81,34 @@ jobs:
           echo "Shell name: $(basename $SHELL)"
           echo "Current PATH: $PATH"
           
-          # Export jfvm PATH manually for CI environment
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Export jfcm PATH manually for CI environment
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
-          # Verify jfvm is in PATH
+          # Verify jfcm is in PATH
           echo "PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
           
-          # Test jfvm command
-          jfvm --version
+          # Test jfcm command
+          jfcm --version
 
       - name: Test basic functionality
         run: |
           # Test help command
-          jfvm --help || echo "Help command failed"
+          jfcm --help || echo "Help command failed"
           
           # Test list command
-          jfvm list || echo "List command failed"
+          jfcm list || echo "List command failed"
           
           # Test health check
-          jfvm health-check || echo "Health check failed"
+          jfcm health-check || echo "Health check failed"
 
       - name: Test enhanced priority system
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Use the version
-          jfvm use 2.74.0 || echo "jfvm use failed"
+          jfcm use 2.74.0 || echo "jfcm use failed"
           
           # Verify which jf is being used
           which jf || echo "jf not found in PATH"
@@ -117,19 +117,19 @@ jobs:
           jf --version || echo "jf execution failed"
           
           # Run health check to verify priority
-          jfvm health-check --verbose || echo "Health check failed"
+          jfcm health-check --verbose || echo "Health check failed"
 
       - name: Test health check with fixes
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Test health check with fix flag
-          jfvm health-check --fix
+          jfcm health-check --fix
           
           # Verify PATH configuration
           echo "PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
           
           # Test which jf again
           which jf
@@ -139,28 +139,28 @@ jobs:
 
       - name: Test alias functionality
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Create an alias
-          jfvm alias set test-alias 2.74.0
+          jfcm alias set test-alias 2.74.0
           
           # Use the alias
-          jfvm use test-alias
+          jfcm use test-alias
           
           # Verify alias works
           jf --version
 
       - name: Test project-specific version
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Create a .jfrog-version file
           echo "2.74.0" > .jfrog-version
           
           # Use without arguments (should read from .jfrog-version)
-          jfvm use
+          jfcm use
           
           # Verify correct version is active
           jf --version
@@ -170,50 +170,50 @@ jobs:
 
       - name: Test performance and security checks
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Test health check with performance and security flags
-          jfvm health-check --performance --security --verbose
+          jfcm health-check --performance --security --verbose
 
       - name: Test error handling
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Test using non-existent version
-          jfvm use non-existent-version || echo "Expected error for non-existent version"
+          jfcm use non-existent-version || echo "Expected error for non-existent version"
           
           # Test using invalid alias
-          jfvm use invalid-alias || echo "Expected error for invalid alias"
+          jfcm use invalid-alias || echo "Expected error for invalid alias"
           
       - name: Test latest version functionality
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
-          jfvm health-check --fix
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
+          jfcm health-check --fix
           
           # Test using latest version
-          jfvm use latest || echo "jfvm use latest failed"
+          jfcm use latest || echo "jfcm use latest failed"
           
           # Verify latest version is active
           jf --version || echo "jf execution failed"
           
           # Check health status
-          jfvm health-check || echo "Health check failed"
+          jfcm health-check || echo "Health check failed"
 
       - name: Verify final state
         run: |
-          # Ensure jfvm PATH is loaded
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Ensure jfcm PATH is loaded
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Final health check
-          jfvm health-check
+          jfcm health-check
           
           # List installed versions
-          jfvm list
+          jfcm list
           
           # Show which jf is active
           which jf
@@ -221,13 +221,13 @@ jobs:
           
           # Show PATH entries
           echo "Final PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
 
       - name: Cleanup
         if: always()
         run: |
-          # Uninstall jfvm
-          brew uninstall jfvm || true
+          # Uninstall jfcm
+          brew uninstall jfcm || true
           
           # Remove tap
           brew untap jfrog/jfrog-cli-vm || true 

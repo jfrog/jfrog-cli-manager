@@ -18,7 +18,7 @@ var Remove = &cli.Command{
 			return cli.Exit("Please provide a version to remove", 1)
 		}
 		version := c.Args().Get(0)
-		dir := filepath.Join(utils.JfvmVersions, version)
+		dir := filepath.Join(utils.jfcmVersions, version)
 
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			return fmt.Errorf("version %s is not installed", version)

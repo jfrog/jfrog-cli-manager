@@ -1,11 +1,11 @@
-# jfvm - JFrog CLI Version Manager
+# jfcm - JFrog CLI Version Manager
 
 [![CI](https://github.com/jfrog/jfrog-cli-vm/actions/workflows/release.yml/badge.svg)](https://github.com/jfrog/jfrog-cli-vm/actions/workflows/release.yml)
 [![Latest Release](https://img.shields.io/github/v/release/jfrog/jfrog-cli-vm)](https://github.com/jfrog/jfrog-cli-vm/releases)
 [![License](https://img.shields.io/github/license/jfrog/jfrog-cli-vm)](https://github.com/jfrog/jfrog-cli-vm/blob/main/LICENSE)
 [![homebrew installs](https://img.shields.io/badge/homebrew-installs-brightgreen?logo=homebrew)](https://github.com/jfrog/homebrew-jfrog-cli-vm)
 
-**jfvm** is a powerful CLI tool that helps you manage multiple versions of the [JFrog CLI](https://jfrog.com/getcli/) on your system. It supports auto-installation, version switching, project-specific defaults, local binary linking, aliasing, parallel version comparison, performance benchmarking, and usage analytics — all inspired by tools like `nvm`, `sdkman`, and `volta`.
+**jfcm** is a powerful CLI tool that helps you manage multiple versions of the [JFrog CLI](https://jfrog.com/getcli/) on your system. It supports auto-installation, version switching, project-specific defaults, local binary linking, aliasing, parallel version comparison, performance benchmarking, and usage analytics — all inspired by tools like `nvm`, `sdkman`, and `volta`.
 
 ## 🎥 Demo
 
@@ -14,12 +14,12 @@ https://github.com/user-attachments/assets/6984077c-72ab-4f8c-a11c-671e72870efe
 https://github.com/user-attachments/assets/32ce3eb1-4f69-49bd-bdc7-9f95cd9ead34
 
 
-## 🚀 Why jfvm?
+## 🚀 Why jfcm?
 
-Managing different versions of the JFrog CLI across multiple projects and environments can be challenging. `jfvm` simplifies this by:
+Managing different versions of the JFrog CLI across multiple projects and environments can be challenging. `jfcm` simplifies this by:
 
 - Installing any released version of the `jf` binary
-- Automatically fetching and using the latest version with `jfvm use latest`
+- Automatically fetching and using the latest version with `jfcm use latest`
 - Allowing you to link locally built versions
 - Automatically switching versions based on a `.jfrog-version` file
 - Letting you define named aliases (e.g., `prod`, `dev`)
@@ -37,12 +37,12 @@ No more symlink hacking or hardcoded paths.
 ### Via Homebrew (with tap):
 ```bash
 brew tap jfrog/jfrog-cli-vm
-brew install jfvm
+brew install jfcm
 ```
 
 ### Via one-liner:
 ```bash
-brew install https://raw.githubusercontent.com/jfrog/homebrew-jfrog-cli-vm/main/Formula/jfvm.rb
+brew install https://raw.githubusercontent.com/jfrog/homebrew-jfrog-cli-vm/main/Formula/jfcm.rb
 ```
 
 ### Or Build From Source:
@@ -52,7 +52,7 @@ cd jfrog-cli-vm
 make install
 ```
 
-**Note**: Use `make build` instead of `go build` to ensure the executable is named `jfvm` (not `jfrog-cli-vm`).
+**Note**: Use `make build` instead of `go build` to ensure the executable is named `jfcm` (not `jfrog-cli-vm`).
 
 ---
 
@@ -60,120 +60,120 @@ make install
 
 ### Core Version Management
 
-#### `jfvm install <version>`
+#### `jfcm install <version>`
 Installs the specified version of JFrog CLI (`jf`) from JFrog's public release server.
 ```bash
-jfvm install 2.74.0
+jfcm install 2.74.0
 ```
 
-#### `jfvm use <version or alias>`
-Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed). Automatically sets up PATH priority so jfvm-managed `jf` takes precedence over system-installed versions.
+#### `jfcm use <version or alias>`
+Activates the given version or alias. If `.jfrog-version` exists in the current directory, that will be used if no argument is passed. Use `latest` to automatically fetch and activate the most recent JFrog CLI version (downloads if not already installed). Automatically sets up PATH priority so jfcm-managed `jf` takes precedence over system-installed versions.
 ```bash
-jfvm use 2.74.0
-jfvm use latest
-jfvm use prod
+jfcm use 2.74.0
+jfcm use latest
+jfcm use prod
 ```
 
-#### `jfvm list`
+#### `jfcm list`
 Shows all installed versions and the currently active one.
 ```bash
-jfvm list
+jfcm list
 ```
 
-#### `jfvm remove <version>`
+#### `jfcm remove <version>`
 Removes a specific version of `jf`.
 ```bash
-jfvm remove 2.72.1
+jfcm remove 2.72.1
 ```
 
-#### `jfvm clear`
+#### `jfcm clear`
 Removes **all** installed versions.
 ```bash
-jfvm clear
+jfcm clear
 ```
 
-#### `jfvm alias <n> <version>`
+#### `jfcm alias <n> <version>`
 Defines an alias for a specific version.
 ```bash
-jfvm alias dev 2.74.0
+jfcm alias dev 2.74.0
 ```
 
-#### `jfvm link --from <path> --name <n>`
-Links a **locally built `jf` binary** to be used via `jfvm`.
+#### `jfcm link --from <path> --name <n>`
+Links a **locally built `jf` binary** to be used via `jfcm`.
 ```bash
-jfvm link --from /Users/Jfrog/go/bin/jf --name local-dev
-jfvm use local-dev
+jfcm link --from /Users/Jfrog/go/bin/jf --name local-dev
+jfcm use local-dev
 ```
 
-#### `jfvm health-check`
-Performs comprehensive health check of jfvm installation with various options.
+#### `jfcm health-check`
+Performs comprehensive health check of jfcm installation with various options.
 ```bash
 # Basic health check
-jfvm health-check
+jfcm health-check
 
 # Detailed health check with verbose output
-jfvm health-check --verbose
+jfcm health-check --verbose
 
 # Health check with automatic fixes
-jfvm health-check --fix
+jfcm health-check --fix
 
 # Include performance and security checks
-jfvm health-check --performance --security
+jfcm health-check --performance --security
 
 # All options combined
-jfvm health-check --verbose --fix --performance --security
+jfcm health-check --verbose --fix --performance --security
 ```
 
 
 
 ### Advanced Features
 
-#### `jfvm compare <subcommand>`
+#### `jfcm compare <subcommand>`
 Compare JFrog CLI versions with specialized subcommands for different comparison types.
 
-##### CLI Command Comparison (`jfvm compare cli`)
+##### CLI Command Comparison (`jfcm compare cli`)
 Compare JFrog CLI command output between two versions in parallel with git-like diff visualization.
 
 ```bash
 # Compare version output
-jfvm compare cli 2.74.0 2.73.0 -- --version
+jfcm compare cli 2.74.0 2.73.0 -- --version
 
 # Compare command outputs with side-by-side diff
-jfvm compare cli prod dev -- rt ping
+jfcm compare cli prod dev -- rt ping
 
 # Show unified diff format
-jfvm compare cli 2.74.0 2.73.0 --unified -- config show
+jfcm compare cli 2.74.0 2.73.0 --unified -- config show
 
 # Disable colored output and timing
-jfvm compare cli old new --no-color --timing -- rt search "*.jar"
+jfcm compare cli old new --no-color --timing -- rt search "*.jar"
 ```
 
-##### Server Comparison (`jfvm compare rt`)
+##### Server Comparison (`jfcm compare rt`)
 Compare JFrog CLI command execution between different server configurations.
 
 ```bash
 # Compare rt ping command across two servers
-jfvm compare rt server1 server2 -- rt ping
+jfcm compare rt server1 server2 -- rt ping
 
 # Compare search results across server configurations
-jfvm compare rt prod dev -- rt search "*.jar"
+jfcm compare rt prod dev -- rt search "*.jar"
 
 # Show unified diff format for server comparison
-jfvm compare rt server1 server2 -- config show --unified
+jfcm compare rt server1 server2 -- config show --unified
 
 # Server comparison with custom timeout
-jfvm compare rt main backup -- rt repos show --timeout 60
+jfcm compare rt main backup -- rt repos show --timeout 60
 ```
 
-##### Changelog Comparison (`jfvm compare changelog`)
+##### Changelog Comparison (`jfcm compare changelog`)
 Compare release notes and changelogs between two JFrog CLI versions.
 
 ```bash
 # Compare release notes between versions
-jfvm compare changelog v2.75.1 v2.76.0
+jfcm compare changelog v2.75.1 v2.76.0
 
 # Compare changelogs with custom options
-jfvm compare changelog v2.74.0 v2.73.0 --no-color --timeout 60
+jfcm compare changelog v2.74.0 v2.73.0 --no-color --timeout 60
 ```
 
 **Features:**
@@ -183,19 +183,19 @@ jfvm compare changelog v2.74.0 v2.73.0 --no-color --timeout 60
 - Execution timing comparison
 - Exit code and error output comparison
 
-#### `jfvm benchmark <versions> -- <command>`
+#### `jfcm benchmark <versions> -- <command>`
 Run performance benchmarks across multiple JFrog CLI versions with detailed statistics.
 
 ```bash
 # Benchmark across multiple versions
-jfvm benchmark 2.74.0,2.73.0,2.72.0 -- --version
+jfcm benchmark 2.74.0,2.73.0,2.72.0 -- --version
 
 # Custom iterations and detailed output
-jfvm benchmark prod,dev,latest -- rt ping --iterations 10 --detailed
+jfcm benchmark prod,dev,latest -- rt ping --iterations 10 --detailed
 
 # Export results as JSON or CSV
-jfvm benchmark 2.74.0,2.73.0 -- config show --format json
-jfvm benchmark 2.74.0,2.73.0 -- rt search "*.jar" --format csv
+jfcm benchmark 2.74.0,2.73.0 -- config show --format json
+jfcm benchmark 2.74.0,2.73.0 -- rt search "*.jar" --format csv
 ```
 
 **Features:**
@@ -206,31 +206,31 @@ jfvm benchmark 2.74.0,2.73.0 -- rt search "*.jar" --format csv
 - Detailed execution logs
 - Performance ranking and speed comparisons
 
-#### `jfvm history`
+#### `jfcm history`
 Track and analyze version usage patterns with comprehensive statistics.
 
 ```bash
 # Show recent usage history
-jfvm history
+jfcm history
 
 # Show detailed statistics
-jfvm history --stats
+jfcm history --stats
 
 # Filter by specific version
-jfvm history --version 2.74.0
+jfcm history --version 2.74.0
 
 # Limit number of entries
-jfvm history --limit 20
+jfcm history --limit 20
 
 # Export as JSON
-jfvm history --format json
+jfcm history --format json
 
 # Clear history (cannot be undone)
-jfvm history --clear
+jfcm history --clear
 
 # Reexecute a specific history entry by ID
-jfvm history '!2'  # Reexecute history entry with ID 2
-jfvm history '!5'  # Reexecute history entry with ID 5
+jfcm history '!2'  # Reexecute history entry with ID 2
+jfcm history '!5'  # Reexecute history entry with ID 5
 ```
 
 **Features:**
@@ -251,32 +251,32 @@ echo "2.74.0" > .jfrog-version
 ```
 Then run:
 ```bash
-jfvm use
+jfcm use
 ```
 
 ---
 
 ## ⚙️ Shell Integration & Priority Management
-jfvm automatically configures your shell to ensure jfvm-managed `jf` binaries have **highest priority** over system-installed versions. When you run `jfvm use <version>`, it:
+jfcm automatically configures your shell to ensure jfcm-managed `jf` binaries have **highest priority** over system-installed versions. When you run `jfcm use <version>`, it:
 
-1. **Creates a shim** at `~/.jfvm/shim/jf` that redirects to the active version
-2. **Updates your PATH** to prioritize the jfvm shim directory (prepends to PATH)
+1. **Creates a shim** at `~/.jfcm/shim/jf` that redirects to the active version
+2. **Updates your PATH** to prioritize the jfcm shim directory (prepends to PATH)
 3. **Adds a shell function** for enhanced priority handling (similar to nvm)
-4. **Verifies priority** to ensure jfvm-managed versions take precedence over Homebrew or system-installed jf
+4. **Verifies priority** to ensure jfcm-managed versions take precedence over Homebrew or system-installed jf
 
 The configuration is automatically added to your shell profile (`.zshrc`, `.bashrc`, etc.):
 ```bash
-# jfvm PATH configuration - ensures jfvm-managed jf takes highest priority
-export PATH="$HOME/.jfvm/shim:$PATH"
+# jfcm PATH configuration - ensures jfcm-managed jf takes highest priority
+export PATH="$HOME/.jfcm/shim:$PATH"
 
-# jfvm shell function for enhanced priority (similar to nvm approach)
+# jfcm shell function for enhanced priority (similar to nvm approach)
 jf() {
-    # Check if jfvm shim exists and is executable
-    if [ -x "$HOME/.jfvm/shim/jf" ]; then
-        # Execute jfvm-managed jf with highest priority
-        "$HOME/.jfvm/shim/jf" "$@"
+    # Check if jfcm shim exists and is executable
+    if [ -x "$HOME/.jfcm/shim/jf" ]; then
+        # Execute jfcm-managed jf with highest priority
+        "$HOME/.jfcm/shim/jf" "$@"
     else
-        # Fallback to system jf if jfvm shim not available
+        # Fallback to system jf if jfcm shim not available
         command jf "$@"
     fi
 }
@@ -285,51 +285,51 @@ jf() {
 
 
 ### Debug Mode
-Set `JFVM_DEBUG=1` to see detailed shim execution information:
+Set `jfcm_DEBUG=1` to see detailed shim execution information:
 ```bash
-export JFVM_DEBUG=1
+export jfcm_DEBUG=1
 # Will show which version is being executed
 jf --version
 ```
 
 ### Troubleshooting PATH Issues
 
-If `jf` is still using the system version instead of jfvm-managed version:
+If `jf` is still using the system version instead of jfcm-managed version:
 
 1. **Run the health check command:**
    ```bash
-   jfvm health-check --fix
-   # This will verify all aspects of jfvm setup and attempt to fix issues
+   jfcm health-check --fix
+   # This will verify all aspects of jfcm setup and attempt to fix issues
    ```
 
 2. **Check which jf is being used:**
    ```bash
    which jf
-   # Should show: /Users/username/.jfvm/shim/jf
+   # Should show: /Users/username/.jfcm/shim/jf
    ```
 
 3. **Verify PATH order:**
    ```bash
    echo $PATH
-   # ~/.jfvm/shim should appear before /usr/local/bin or /opt/homebrew/bin
+   # ~/.jfcm/shim should appear before /usr/local/bin or /opt/homebrew/bin
    ```
 
 4. **Re-run use command:**
    ```bash
-   jfvm use <version>
+   jfcm use <version>
    source ~/.zshrc  # or ~/.bashrc
    ```
 
 5. **Manual PATH fix:**
    ```bash
    # Add this to your shell profile
-   export PATH="$HOME/.jfvm/shim:$PATH"
+   export PATH="$HOME/.jfcm/shim:$PATH"
    ```
 
 6. **Check for shell function conflicts:**
    ```bash
    type jf
-   # Should show the jfvm shell function, not a system binary
+   # Should show the jfcm shell function, not a system binary
 ```
 
 ---
@@ -339,43 +339,43 @@ If `jf` is still using the system version instead of jfvm-managed version:
 ### Comparing Configuration Changes
 ```bash
 # Compare configuration differences between versions
-jfvm compare cli 2.74.0 2.73.0 -- config show --format json
+jfcm compare cli 2.74.0 2.73.0 -- config show --format json
 
 # Check if a specific feature works across versions
-jfvm compare cli old new -- rt search "libs-release-local/*.jar" --limit 5
+jfcm compare cli old new -- rt search "libs-release-local/*.jar" --limit 5
 
 # Compare release notes and changelogs
-jfvm compare changelog v2.75.1 v2.76.0
+jfcm compare changelog v2.75.1 v2.76.0
 ```
 
 ### Performance Analysis
 ```bash
 # Benchmark search performance across versions
-jfvm benchmark 2.74.0,2.73.0,2.72.0 -- rt search "*" --limit 100 --iterations 3
+jfcm benchmark 2.74.0,2.73.0,2.72.0 -- rt search "*" --limit 100 --iterations 3
 
 # Test upload performance
-jfvm benchmark prod,dev -- rt upload test.txt my-repo/ --iterations 5 --detailed
+jfcm benchmark prod,dev -- rt upload test.txt my-repo/ --iterations 5 --detailed
 ```
 
 ### Usage Analytics
 ```bash
 # See your most used JFrog CLI commands
-jfvm history --stats
+jfcm history --stats
 
 # Track version adoption over time
-jfvm history --version 2.74.0
+jfcm history --version 2.74.0
 ```
 
 ### Automation and CI/CD
 ```bash
 # Export benchmark results for CI analysis
-jfvm benchmark $OLD_VERSION,$NEW_VERSION -- rt ping --format json > performance.json
+jfcm benchmark $OLD_VERSION,$NEW_VERSION -- rt ping --format json > performance.json
 
 # Compare outputs in automated testing
-jfvm compare cli baseline canary --unified --no-color -- rt search "*.jar"
+jfcm compare cli baseline canary --unified --no-color -- rt search "*.jar"
 
 # Always use the latest version in CI/CD pipelines
-jfvm use latest
+jfcm use latest
 jf --version
 ```
 
@@ -383,9 +383,9 @@ jf --version
 
 ## 🧼 Uninstall
 ```bash
-rm -rf ~/.jfvm
+rm -rf ~/.jfcm
  # if installed via Homebrew
-brew uninstall jfvm
+brew uninstall jfcm
 ```
 
 ---
@@ -393,15 +393,15 @@ brew uninstall jfvm
 ## 🔧 Advanced Configuration
 
 ### History Management
-- History is automatically tracked in `~/.jfvm/history.json`
+- History is automatically tracked in `~/.jfcm/history.json`
 - Limited to 1000 entries to prevent unlimited growth
 - Includes command execution timing and metadata
 
 ### Health Check Features
 - **System Environment**: OS compatibility, architecture support, shell detection
-- **Installation Status**: jfvm directories, shim setup, PATH configuration
-- **Priority Verification**: Ensures jfvm-managed `jf` has highest priority
-- **Binary Execution**: Tests both `jfvm` and `jf` command execution
+- **Installation Status**: jfcm directories, shim setup, PATH configuration
+- **Priority Verification**: Ensures jfcm-managed `jf` has highest priority
+- **Binary Execution**: Tests both `jfcm` and `jf` command execution
 - **Network Connectivity**: GitHub API and JFrog releases connectivity
 - **Performance Benchmarks**: Command execution timing and performance analysis
 - **Security Checks**: File permissions and suspicious file detection
@@ -421,13 +421,13 @@ brew uninstall jfvm
 - **Version Testing**: Compare behavior across JFrog CLI versions before upgrading
 - **Performance Monitoring**: Track performance regressions between releases
 - **Usage Analytics**: Understand which commands and versions are used most
-- **Latest Features**: Easily switch to the latest version with `jfvm use latest` to test new features
+- **Latest Features**: Easily switch to the latest version with `jfcm use latest` to test new features
 
 ### DevOps Engineers
 - **CI/CD Integration**: Automate version comparison in deployment pipelines
 - **Performance Benchmarks**: Ensure new versions meet performance requirements
 - **Migration Planning**: Analyze compatibility before major version upgrades
-- **Automated Updates**: Use `jfvm use latest` in deployment scripts to always use the most recent stable version
+- **Automated Updates**: Use `jfcm use latest` in deployment scripts to always use the most recent stable version
 
 ### Enterprise Environments
 - **Compliance Tracking**: Monitor which versions are being used across teams

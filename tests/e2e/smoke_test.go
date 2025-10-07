@@ -10,16 +10,16 @@ func TestSmoke(t *testing.T) {
 	defer ts.CleanupTestSuite(t)
 
 	t.Run("Basic Smoke Test", func(t *testing.T) {
-		// Test that jfvm binary exists and is executable
+		// Test that jfcm binary exists and is executable
 		output, err := ts.RunCommand(t, "--help")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm")
+		ts.AssertContains(t, output, "jfcm")
 	})
 
 	t.Run("Version Command", func(t *testing.T) {
 		// Test that version command works
 		output, err := ts.RunCommand(t, "--version")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm")
+		ts.AssertContains(t, output, "jfcm")
 	})
 }

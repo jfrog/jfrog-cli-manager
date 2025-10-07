@@ -35,17 +35,17 @@ jobs:
           
           # Download checksum files for Homebrew platforms
           for platform in linux-amd64 linux-arm64 darwin-amd64 darwin-arm64; do
-            gh release download "$VERSION" --pattern "jfvm-${VERSION}-${platform}.tar.gz.sha256"
+            gh release download "$VERSION" --pattern "jfcm-${VERSION}-${platform}.tar.gz.sha256"
           done
           
           # Generate formula
           ../.github/scripts/generate-homebrew-formula.sh \
             "$VERSION" \
             "${{ github.repository }}" \
-            "$(awk '{print $1}' jfvm-${VERSION}-darwin-amd64.tar.gz.sha256)" \
-            "$(awk '{print $1}' jfvm-${VERSION}-darwin-arm64.tar.gz.sha256)" \
-            "$(awk '{print $1}' jfvm-${VERSION}-linux-amd64.tar.gz.sha256)" \
-            "$(awk '{print $1}' jfvm-${VERSION}-linux-arm64.tar.gz.sha256)"
+            "$(awk '{print $1}' jfcm-${VERSION}-darwin-amd64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfcm-${VERSION}-darwin-arm64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfcm-${VERSION}-linux-amd64.tar.gz.sha256)" \
+            "$(awk '{print $1}' jfcm-${VERSION}-linux-arm64.tar.gz.sha256)"
 
       - name: Publish to tap
         env:
@@ -66,11 +66,11 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           
           mkdir -p Formula
-          cp ../checksums/jfvm.rb Formula/jfvm.rb
+          cp ../checksums/jfcm.rb Formula/jfcm.rb
           
-          if ! git diff --quiet HEAD Formula/jfvm.rb 2>/dev/null; then
-            git add Formula/jfvm.rb
-            git commit -m "Update jfvm to $VERSION"
+          if ! git diff --quiet HEAD Formula/jfcm.rb 2>/dev/null; then
+            git add Formula/jfcm.rb
+            git commit -m "Update jfcm to $VERSION"
             git push origin main
             echo "✅ Published $VERSION to Homebrew tap"
           else

@@ -12,7 +12,7 @@ var ListBlocked = &cli.Command{
 	Usage:   "Lists all blocked versions of jf-cli",
 	Aliases: []string{"lb"},
 	Description: `All versions of jf-cli that are blocked.
-                  These versions cannot be used until they are unblocked using 'jfvm unblock <versions>' command.`,
+                  These versions cannot be used until they are unblocked using 'jfcm unblock <versions>' command.`,
 	Action: func(c *cli.Context) error {
 		blockedVersions, err := utils.GetBlockedVersions()
 		if err != nil {
@@ -29,7 +29,7 @@ var ListBlocked = &cli.Command{
 			fmt.Printf("  • %s\n", version)
 		}
 
-		fmt.Println("\nuse 'jfvm unblock <version>' to unblock a specific version")
+		fmt.Println("\nuse 'jfcm unblock <version>' to unblock a specific version")
 		return nil
 	},
 }

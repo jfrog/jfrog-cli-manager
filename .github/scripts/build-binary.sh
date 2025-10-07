@@ -19,7 +19,7 @@ if [[ -z "$VERSION" || -z "$BUILD_DATE" ]]; then
 fi
 
 OUT="dist/$GOOS-$GOARCH"
-BIN_NAME="jfvm"
+BIN_NAME="jfcm"
 EXT=""
 if [ "$GOOS" = "windows" ]; then 
   EXT=".exe"

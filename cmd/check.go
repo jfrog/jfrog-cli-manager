@@ -15,8 +15,8 @@ import (
 
 var HealthCheck = &cli.Command{
 	Name:        "health-check",
-	Usage:       "Perform comprehensive health check of jfvm installation",
-	Description: "Verifies jfvm setup, priority status, system compatibility, and performance",
+	Usage:       "Perform comprehensive health check of jfcm installation",
+	Description: "Verifies jfcm setup, priority status, system compatibility, and performance",
 	Flags: []cli.Flag{
 		&cli.BoolFlag{
 			Name:    "verbose",
@@ -77,7 +77,7 @@ type HealthReport struct {
 }
 
 func runHealthCheck(verbose, fix, performance, security bool) error {
-	fmt.Println("🏥 jfvm Health Check")
+	fmt.Println("🏥 jfcm Health Check")
 	fmt.Println("===================")
 	fmt.Println()
 
@@ -96,10 +96,10 @@ func runHealthCheck(verbose, fix, performance, security bool) error {
 	printHealthResults(report.Checks[startCount:], verbose)
 	fmt.Println()
 
-	// 2. jfvm Installation Check
-	fmt.Println("2. 📦 jfvm Installation")
+	// 2. jfcm Installation Check
+	fmt.Println("2. 📦 jfcm Installation")
 	startCount = len(report.Checks)
-	checkJfvmInstallation(report, verbose)
+	checkjfcmInstallation(report, verbose)
 	printHealthResults(report.Checks[startCount:], verbose)
 	fmt.Println()
 
@@ -241,18 +241,18 @@ func checkSystemEnvironment(report *HealthReport, verbose bool) {
 	report.Summary[status.Status]++
 }
 
-func checkJfvmInstallation(report *HealthReport, verbose bool) {
-	// Check jfvm root directory
-	status := HealthStatus{Component: "jfvm Root Directory"}
-	if _, err := os.Stat(utils.JfvmRoot); err == nil {
+func checkjfcmInstallation(report *HealthReport, verbose bool) {
+	// Check jfcm root directory
+	status := HealthStatus{Component: "jfcm Root Directory"}
+	if _, err := os.Stat(utils.jfcmRoot); err == nil {
 		status.Status = "pass"
-		status.Message = "jfvm root directory exists"
+		status.Message = "jfcm root directory exists"
 		if verbose {
-			status.Details = utils.JfvmRoot
+			status.Details = utils.jfcmRoot
 		}
 	} else {
 		status.Status = "fail"
-		status.Message = "jfvm root directory missing"
+		status.Message = "jfcm root directory missing"
 		status.Fixable = true
 	}
 	report.Checks = append(report.Checks, status)
@@ -260,7 +260,7 @@ func checkJfvmInstallation(report *HealthReport, verbose bool) {
 
 	// Check versions directory
 	status = HealthStatus{Component: "Versions Directory"}
-	if _, err := os.Stat(utils.JfvmVersions); err == nil {
+	if _, err := os.Stat(utils.jfcmVersions); err == nil {
 		status.Status = "pass"
 		status.Message = "Versions directory exists"
 	} else {
@@ -272,7 +272,7 @@ func checkJfvmInstallation(report *HealthReport, verbose bool) {
 
 	// Check aliases directory
 	status = HealthStatus{Component: "Aliases Directory"}
-	if _, err := os.Stat(utils.JfvmAliases); err == nil {
+	if _, err := os.Stat(utils.jfcmAliases); err == nil {
 		status.Status = "pass"
 		status.Message = "Aliases directory exists"
 	} else {
@@ -286,7 +286,7 @@ func checkJfvmInstallation(report *HealthReport, verbose bool) {
 func checkShimSetup(report *HealthReport, verbose bool, fix bool) {
 	// Check shim directory
 	status := HealthStatus{Component: "Shim Directory"}
-	if _, err := os.Stat(utils.JfvmShim); err == nil {
+	if _, err := os.Stat(utils.jfcmShim); err == nil {
 		status.Status = "pass"
 		status.Message = "Shim directory exists"
 	} else {
@@ -299,7 +299,7 @@ func checkShimSetup(report *HealthReport, verbose bool, fix bool) {
 
 	// Check shim binary
 	status = HealthStatus{Component: "Shim Binary"}
-	shimPath := filepath.Join(utils.JfvmShim, utils.BinaryName)
+	shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
 	if _, err := os.Stat(shimPath); err == nil {
 		status.Status = "pass"
 		status.Message = "Shim binary exists"
@@ -340,10 +340,10 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 	status := HealthStatus{Component: "PATH Priority"}
 	if err := utils.VerifyPriority(); err == nil {
 		status.Status = "pass"
-		status.Message = "jfvm has highest priority in PATH"
+		status.Message = "jfcm has highest priority in PATH"
 	} else {
 		status.Status = "fail"
-		status.Message = "jfvm does not have highest priority in PATH"
+		status.Message = "jfcm does not have highest priority in PATH"
 		status.Details = err.Error()
 		status.Fixable = true
 	}
@@ -357,22 +357,22 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 		status.Status = "fail"
 		status.Message = "jf binary not found in PATH"
 	} else {
-		shimDir := filepath.Clean(utils.JfvmShim)
+		shimDir := filepath.Clean(utils.jfcmShim)
 		jfDir := filepath.Clean(filepath.Dir(jfPath))
 		if verbose {
 			fmt.Printf("[DEBUG] which jf: %s\n", jfPath)
-			fmt.Printf("[DEBUG] utils.JfvmShim: %s\n", shimDir)
+			fmt.Printf("[DEBUG] utils.jfcmShim: %s\n", shimDir)
 			fmt.Printf("[DEBUG] filepath.Dir(jfPath): %s\n", jfDir)
 		}
 		if jfDir == shimDir {
 			status.Status = "pass"
-			status.Message = "jfvm-managed jf is active"
+			status.Message = "jfcm-managed jf is active"
 			if verbose {
 				status.Details = jfPath
 			}
 		} else {
 			status.Status = "fail"
-			status.Message = "System jf is active (not jfvm-managed)"
+			status.Message = "System jf is active (not jfcm-managed)"
 			status.Details = fmt.Sprintf("Expected: %s/jf, Found: %s", shimDir, jfPath)
 			status.Fixable = true
 		}
@@ -382,7 +382,7 @@ func checkPathPriority(report *HealthReport, verbose bool, fix bool) {
 
 	if verbose {
 		fmt.Println("  ℹ️  Note: This check reflects the current terminal session's PATH.")
-		fmt.Println("     If you recently ran 'jfvm use' or 'jfvm health-check --fix',")
+		fmt.Println("     If you recently ran 'jfcm use' or 'jfcm health-check --fix',")
 		fmt.Println("     you may need to 'source ~/.zshrc' (or ~/.bashrc) to see changes.")
 	}
 }
@@ -437,27 +437,27 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 	var corruptedLines []int
 
 	// More sophisticated corruption detection
-	// Check for multiple jfvm blocks (should only be one)
-	jfvmBlockCount := 0
-	inJfvmBlock := false
+	// Check for multiple jfcm blocks (should only be one)
+	jfcmBlockCount := 0
+	injfcmBlock := false
 	orphanedStatements := 0
 
 	for i, line := range lines {
-		// Count jfvm blocks
-		if strings.Contains(line, "# >>> jfvm") {
-			jfvmBlockCount++
-			inJfvmBlock = true
-		} else if strings.Contains(line, "# <<< jfvm") {
-			inJfvmBlock = false
+		// Count jfcm blocks
+		if strings.Contains(line, "# >>> jfcm") {
+			jfcmBlockCount++
+			injfcmBlock = true
+		} else if strings.Contains(line, "# <<< jfcm") {
+			injfcmBlock = false
 		}
 
-		// Check for orphaned jfvm-related statements outside blocks
-		if !inJfvmBlock {
+		// Check for orphaned jfcm-related statements outside blocks
+		if !injfcmBlock {
 			if strings.Contains(line, "jf() {") ||
-				(strings.Contains(line, "export PATH") && strings.Contains(line, "jfvm")) ||
-				strings.Contains(line, "jfvm shell function") ||
-				strings.Contains(line, "Check if jfvm") ||
-				strings.Contains(line, "Execute jfvm") ||
+				(strings.Contains(line, "export PATH") && strings.Contains(line, "jfcm")) ||
+				strings.Contains(line, "jfcm shell function") ||
+				strings.Contains(line, "Check if jfcm") ||
+				strings.Contains(line, "Execute jfcm") ||
 				strings.Contains(line, "Fallback to system") {
 				orphanedStatements++
 				corruptedLines = append(corruptedLines, i+1)
@@ -465,27 +465,27 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 		}
 	}
 
-	// Check for multiple jfvm blocks
-	if jfvmBlockCount > 1 {
-		issues = append(issues, fmt.Sprintf("Multiple jfvm blocks: found %d instances", jfvmBlockCount))
-		totalIssues += jfvmBlockCount - 1
+	// Check for multiple jfcm blocks
+	if jfcmBlockCount > 1 {
+		issues = append(issues, fmt.Sprintf("Multiple jfcm blocks: found %d instances", jfcmBlockCount))
+		totalIssues += jfcmBlockCount - 1
 	}
 
 	// Check for orphaned statements
 	if orphanedStatements > 0 {
-		issues = append(issues, fmt.Sprintf("Orphaned jfvm statements: found %d instances", orphanedStatements))
+		issues = append(issues, fmt.Sprintf("Orphaned jfcm statements: found %d instances", orphanedStatements))
 		totalIssues += orphanedStatements
 	}
 
 	// Check for multiple PATH entries (simple pattern matching)
 	pathEntries := 0
 	for _, line := range lines {
-		if strings.Contains(line, "export PATH") && strings.Contains(line, "jfvm") {
+		if strings.Contains(line, "export PATH") && strings.Contains(line, "jfcm") {
 			pathEntries++
 		}
 	}
 	if pathEntries > 1 {
-		issues = append(issues, fmt.Sprintf("Multiple jfvm PATH entries: found %d instances", pathEntries))
+		issues = append(issues, fmt.Sprintf("Multiple jfcm PATH entries: found %d instances", pathEntries))
 		totalIssues += pathEntries - 1
 	}
 
@@ -508,7 +508,7 @@ func checkShellProfileIntegrity(report *HealthReport, verbose bool, fix bool) {
 		fmt.Printf("🔍 Corruption detection results:\n")
 		fmt.Printf("   - Total issues found: %d\n", len(issues))
 		fmt.Printf("   - Issues: %v\n", issues)
-		fmt.Printf("   - jfvmBlockCount: %d\n", jfvmBlockCount)
+		fmt.Printf("   - jfcmBlockCount: %d\n", jfcmBlockCount)
 		fmt.Printf("   - orphanedStatements: %d\n", orphanedStatements)
 		fmt.Printf("   - pathEntries: %d\n", pathEntries)
 		fmt.Printf("   - jfFunctions: %d\n", jfFunctions)
@@ -545,7 +545,7 @@ func checkActiveVersion(report *HealthReport, verbose bool) {
 		status.Message = fmt.Sprintf("Active version: %s", activeVersion)
 
 		// Check if binary exists
-		binaryPath := filepath.Join(utils.JfvmVersions, activeVersion, utils.BinaryName)
+		binaryPath := filepath.Join(utils.jfcmVersions, activeVersion, utils.BinaryName)
 		if _, err := os.Stat(binaryPath); err == nil {
 			status.Details = "Binary exists"
 		} else {
@@ -559,7 +559,7 @@ func checkActiveVersion(report *HealthReport, verbose bool) {
 
 	// Check installed versions
 	status = HealthStatus{Component: "Installed Versions"}
-	if entries, err := os.ReadDir(utils.JfvmVersions); err == nil {
+	if entries, err := os.ReadDir(utils.jfcmVersions); err == nil {
 		count := len(entries)
 		if count > 0 {
 			status.Status = "pass"
@@ -590,7 +590,7 @@ func checkBinaryExecution(report *HealthReport, verbose bool) {
 	status := HealthStatus{Component: "jf Execution"}
 	cmd := exec.Command("jf", "--version")
 	// Disable history recording for internal health checks
-	cmd.Env = append(os.Environ(), "JFVM_NO_HISTORY=1")
+	cmd.Env = append(os.Environ(), "jfcm_NO_HISTORY=1")
 	output, err := cmd.Output()
 	if err != nil {
 		status.Status = "fail"
@@ -606,16 +606,16 @@ func checkBinaryExecution(report *HealthReport, verbose bool) {
 	report.Checks = append(report.Checks, status)
 	report.Summary[status.Status]++
 
-	// Test jfvm execution
-	status = HealthStatus{Component: "jfvm Execution"}
-	cmd = exec.Command("jfvm", "--help")
+	// Test jfcm execution
+	status = HealthStatus{Component: "jfcm Execution"}
+	cmd = exec.Command("jfcm", "--help")
 	if err := cmd.Run(); err != nil {
 		status.Status = "fail"
-		status.Message = "jfvm execution failed"
+		status.Message = "jfcm execution failed"
 		status.Details = err.Error()
 	} else {
 		status.Status = "pass"
-		status.Message = "jfvm execution successful"
+		status.Message = "jfcm execution successful"
 	}
 	report.Checks = append(report.Checks, status)
 	report.Summary[status.Status]++
@@ -652,21 +652,21 @@ func checkNetworkConnectivity(report *HealthReport, verbose bool) {
 }
 
 func checkPerformance(report *HealthReport, verbose bool) {
-	// Test jfvm command performance
-	status := HealthStatus{Component: "jfvm Performance"}
+	// Test jfcm command performance
+	status := HealthStatus{Component: "jfcm Performance"}
 	start := time.Now()
-	cmd := exec.Command("jfvm", "list")
+	cmd := exec.Command("jfcm", "list")
 	if err := cmd.Run(); err != nil {
 		status.Status = "fail"
-		status.Message = "jfvm list command failed"
+		status.Message = "jfcm list command failed"
 	} else {
 		duration := time.Since(start)
 		if duration < 100*time.Millisecond {
 			status.Status = "pass"
-			status.Message = fmt.Sprintf("jfvm list completed in %v", duration)
+			status.Message = fmt.Sprintf("jfcm list completed in %v", duration)
 		} else {
 			status.Status = "warn"
-			status.Message = fmt.Sprintf("jfvm list took %v (slow)", duration)
+			status.Message = fmt.Sprintf("jfcm list took %v (slow)", duration)
 		}
 	}
 	report.Checks = append(report.Checks, status)
@@ -677,7 +677,7 @@ func checkPerformance(report *HealthReport, verbose bool) {
 	start = time.Now()
 	cmd = exec.Command("jf", "--version")
 	// Disable history recording for internal health checks
-	cmd.Env = append(os.Environ(), "JFVM_NO_HISTORY=1")
+	cmd.Env = append(os.Environ(), "jfcm_NO_HISTORY=1")
 	if err := cmd.Run(); err != nil {
 		status.Status = "fail"
 		status.Message = "jf version command failed"
@@ -698,7 +698,7 @@ func checkPerformance(report *HealthReport, verbose bool) {
 func checkSecurity(report *HealthReport, verbose bool) {
 	// Check file permissions
 	status := HealthStatus{Component: "File Permissions"}
-	shimPath := filepath.Join(utils.JfvmShim, utils.BinaryName)
+	shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
 	if info, err := os.Stat(shimPath); err == nil {
 		mode := info.Mode()
 		if mode&0077 == 0 { // No world/group write permissions
@@ -719,10 +719,10 @@ func checkSecurity(report *HealthReport, verbose bool) {
 	// Check for suspicious files
 	status = HealthStatus{Component: "Suspicious Files"}
 	suspiciousFound := false
-	if entries, err := os.ReadDir(utils.JfvmRoot); err == nil {
+	if entries, err := os.ReadDir(utils.jfcmRoot); err == nil {
 		for _, entry := range entries {
 			if strings.HasSuffix(entry.Name(), ".exe") || strings.HasSuffix(entry.Name(), ".sh") {
-				if !strings.Contains(entry.Name(), "jf") && !strings.Contains(entry.Name(), "jfvm") {
+				if !strings.Contains(entry.Name(), "jf") && !strings.Contains(entry.Name(), "jfcm") {
 					suspiciousFound = true
 					break
 				}
@@ -732,7 +732,7 @@ func checkSecurity(report *HealthReport, verbose bool) {
 
 	if suspiciousFound {
 		status.Status = "warn"
-		status.Message = "Suspicious files found in jfvm directory"
+		status.Message = "Suspicious files found in jfcm directory"
 	} else {
 		status.Status = "pass"
 		status.Message = "No suspicious files found"
@@ -767,15 +767,15 @@ func attemptFixes(report *HealthReport) {
 			fmt.Printf("  Fixing %s...\n", check.Component)
 
 			switch check.Component {
-			case "jfvm Root Directory":
-				if err := os.MkdirAll(utils.JfvmRoot, 0755); err == nil {
-					fmt.Printf("    ✅ Created jfvm root directory\n")
+			case "jfcm Root Directory":
+				if err := os.MkdirAll(utils.jfcmRoot, 0755); err == nil {
+					fmt.Printf("    ✅ Created jfcm root directory\n")
 					fixesApplied = true
 				} else {
-					fmt.Printf("    ❌ Failed to create jfvm root directory: %v\n", err)
+					fmt.Printf("    ❌ Failed to create jfcm root directory: %v\n", err)
 				}
 			case "Shim Directory":
-				if err := os.MkdirAll(utils.JfvmShim, 0755); err == nil {
+				if err := os.MkdirAll(utils.jfcmShim, 0755); err == nil {
 					fmt.Printf("    ✅ Created shim directory\n")
 					fixesApplied = true
 				} else {
@@ -789,7 +789,7 @@ func attemptFixes(report *HealthReport) {
 					fmt.Printf("    ❌ Failed to create shim binary: %v\n", err)
 				}
 			case "Shim Permissions":
-				shimPath := filepath.Join(utils.JfvmShim, utils.BinaryName)
+				shimPath := filepath.Join(utils.jfcmShim, utils.BinaryName)
 				if err := os.Chmod(shimPath, 0755); err == nil {
 					fmt.Printf("    ✅ Fixed shim permissions\n")
 					fixesApplied = true

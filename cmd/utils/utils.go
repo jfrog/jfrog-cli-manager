@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	ToolName             = "jfvm"
+	ToolName             = "jfcm"
 	ConfigFile           = "config"
 	VersionsDir          = "versions"
 	BinaryName           = "jf"
@@ -26,21 +26,21 @@ const (
 
 var (
 	HomeDir       = os.Getenv("HOME")
-	JfvmRoot      = filepath.Join(HomeDir, "."+ToolName)
-	JfvmConfig    = filepath.Join(JfvmRoot, ConfigFile)
-	JfvmVersions  = filepath.Join(JfvmRoot, VersionsDir)
-	JfvmAliases   = filepath.Join(JfvmRoot, AliasesDir)
-	JfvmShim      = filepath.Join(JfvmRoot, ShimDir)
-	JfvmBlockFile = filepath.Join(JfvmRoot, BlockFile)
+	jfcmRoot      = filepath.Join(HomeDir, "."+ToolName)
+	jfcmConfig    = filepath.Join(jfcmRoot, ConfigFile)
+	jfcmVersions  = filepath.Join(jfcmRoot, VersionsDir)
+	jfcmAliases   = filepath.Join(jfcmRoot, AliasesDir)
+	jfcmShim      = filepath.Join(jfcmRoot, ShimDir)
+	jfcmBlockFile = filepath.Join(jfcmRoot, BlockFile)
 )
 
-// InitializeJfvmDirectories creates the necessary jfvm directories if they don't exist
-func InitializeJfvmDirectories() error {
+// InitializejfcmDirectories creates the necessary jfcm directories if they don't exist
+func InitializejfcmDirectories() error {
 	directories := []string{
-		JfvmRoot,
-		JfvmVersions,
-		JfvmAliases,
-		JfvmShim,
+		jfcmRoot,
+		jfcmVersions,
+		jfcmAliases,
+		jfcmShim,
 	}
 
 	for _, dir := range directories {
@@ -81,7 +81,7 @@ func ResolveAlias(name string) (string, error) {
 
 // GetAliasData reads and parses alias data from the alias file
 func GetAliasData(aliasName string) (*AliasData, error) {
-	path := filepath.Join(JfvmAliases, aliasName)
+	path := filepath.Join(jfcmAliases, aliasName)
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func ResolveVersionOrAlias(name string) (string, error) {
 
 // CheckVersionExists verifies that a version directory and binary exist
 func CheckVersionExists(version string) error {
-	versionDir := filepath.Join(JfvmVersions, version)
+	versionDir := filepath.Join(jfcmVersions, version)
 	binaryPath := filepath.Join(versionDir, BinaryName)
 
 	// Check if version directory exists
@@ -145,7 +145,7 @@ func GetLatestVersion() (string, error) {
 	}
 
 	// Add proper headers to avoid rate limiting
-	req.Header.Set("User-Agent", "jfvm/1.0")
+	req.Header.Set("User-Agent", "jfcm/1.0")
 	req.Header.Set("Accept", "application/vnd.github.v3+json")
 
 	// Add GitHub token if available (for CI environments)
@@ -241,7 +241,7 @@ func getLatestVersionFromJFrogReleases() (string, error) {
 		return "", fmt.Errorf("failed to create JFrog releases request: %w", err)
 	}
 
-	req.Header.Set("User-Agent", "jfvm/1.0")
+	req.Header.Set("User-Agent", "jfcm/1.0")
 
 	resp, err := client.Do(req)
 	if err != nil {
@@ -261,11 +261,11 @@ func getLatestVersionFromJFrogReleases() (string, error) {
 // SetupShim creates the jf shim that will redirect to the active version
 func SetupShim() error {
 	// Create shim directory if it doesn't exist
-	if err := os.MkdirAll(JfvmShim, 0755); err != nil {
+	if err := os.MkdirAll(jfcmShim, 0755); err != nil {
 		return fmt.Errorf("failed to create shim directory: %w", err)
 	}
 
-	shimPath := filepath.Join(JfvmShim, BinaryName)
+	shimPath := filepath.Join(jfcmShim, BinaryName)
 
 	// Create shim script content based on platform
 	var shimContent string
@@ -286,35 +286,35 @@ func SetupShim() error {
 // createUnixShim creates the shim script for Unix-like systems
 func createUnixShim() string {
 	return `#!/bin/bash
-# jfvm shim - redirects jf commands to the active version
+# jfcm shim - redirects jf commands to the active version
 
 # Capture the full command line as typed
 FULL_CMD="$(basename "$0") $@"
 
-# Debug output if JFVM_DEBUG is set
-if [ "$JFVM_DEBUG" = "1" ]; then
-    echo "[shim] Executing jfvm shim" >&2
+# Debug output if jfcm_DEBUG is set
+if [ "$jfcm_DEBUG" = "1" ]; then
+    echo "[shim] Executing jfcm shim" >&2
 fi
 
-# Get the active version from jfvm config
-JFVM_ROOT="$HOME/.jfvm"
-CONFIG_FILE="$JFVM_ROOT/config"
+# Get the active version from jfcm config
+jfcm_ROOT="$HOME/.jfcm"
+CONFIG_FILE="$jfcm_ROOT/config"
 
 if [ ! -f "$CONFIG_FILE" ]; then
-    echo "Error: No active jfvm version. Run 'jfvm use <version>' first." >&2
+    echo "Error: No active jfcm version. Run 'jfcm use <version>' first." >&2
     exit 1
 fi
 
 ACTIVE_VERSION=$(cat "$CONFIG_FILE")
-BINARY_PATH="$JFVM_ROOT/versions/$ACTIVE_VERSION/jf"
+BINARY_PATH="$jfcm_ROOT/versions/$ACTIVE_VERSION/jf"
 
-if [ "$JFVM_DEBUG" = "1" ]; then
+if [ "$jfcm_DEBUG" = "1" ]; then
     echo "[shim] Executing version: $ACTIVE_VERSION" >&2
     echo "[shim] Full binary path: $BINARY_PATH" >&2
 fi
 
 if [ ! -f "$BINARY_PATH" ]; then
-    echo "Error: Active version $ACTIVE_VERSION not found. Run 'jfvm use <version>' to fix." >&2
+    echo "Error: Active version $ACTIVE_VERSION not found. Run 'jfcm use <version>' to fix." >&2
     exit 1
 fi
 
@@ -322,7 +322,7 @@ fi
 if [ -t 0 ]; then
     # Interactive mode - use exec to preserve stdin/stdout/stderr
     # This ensures interactive prompts work correctly
-    if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
+    if [ "$jfcm_NO_HISTORY" = "1" ] || [ "$jfcm_DEBUG" = "1" ]; then
         exec "$BINARY_PATH" "$@"
     else
         # For interactive commands, we can't easily capture output
@@ -337,24 +337,24 @@ if [ -t 0 ]; then
         DURATION=$((END_TIME - START_TIME))
         
         # Record history asynchronously (without output for interactive commands)
-        JFVM_BINARY=""
-        if [ -x "./jfvm" ]; then
-            JFVM_BINARY="./jfvm"
-        elif [ -x "$(dirname "$0")/../jfvm" ]; then
-            JFVM_BINARY="$(dirname "$0")/../jfvm"
+        jfcm_BINARY=""
+        if [ -x "./jfcm" ]; then
+            jfcm_BINARY="./jfcm"
+        elif [ -x "$(dirname "$0")/../jfcm" ]; then
+            jfcm_BINARY="$(dirname "$0")/../jfcm"
         else
-            JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
+            jfcm_BINARY="$(command -v jfcm 2>/dev/null || echo '')"
         fi
         
-        if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
-            ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "[interactive command]" >/dev/null 2>&1) &
+        if [ -n "$jfcm_BINARY" ] && [ -x "$jfcm_BINARY" ]; then
+            ("$jfcm_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "[interactive command]" >/dev/null 2>&1) &
         fi
         
         exit $EXIT_CODE
     fi
 else
     # Non-interactive mode - capture output for history
-    if [ "$JFVM_NO_HISTORY" = "1" ] || [ "$JFVM_DEBUG" = "1" ]; then
+    if [ "$jfcm_NO_HISTORY" = "1" ] || [ "$jfcm_DEBUG" = "1" ]; then
         exec "$BINARY_PATH" "$@"
     fi
 
@@ -368,18 +368,18 @@ else
     DURATION=$((END_TIME - START_TIME))
 
     # Record history asynchronously to avoid blocking
-    # Try to find the jfvm binary in the current directory first, then fallback to PATH
-    JFVM_BINARY=""
-    if [ -x "./jfvm" ]; then
-        JFVM_BINARY="./jfvm"
-    elif [ -x "$(dirname "$0")/../jfvm" ]; then
-        JFVM_BINARY="$(dirname "$0")/../jfvm"
+    # Try to find the jfcm binary in the current directory first, then fallback to PATH
+    jfcm_BINARY=""
+    if [ -x "./jfcm" ]; then
+        jfcm_BINARY="./jfcm"
+    elif [ -x "$(dirname "$0")/../jfcm" ]; then
+        jfcm_BINARY="$(dirname "$0")/../jfcm"
     else
-        JFVM_BINARY="$(command -v jfvm 2>/dev/null || echo '')"
+        jfcm_BINARY="$(command -v jfcm 2>/dev/null || echo '')"
     fi
 
-    if [ -n "$JFVM_BINARY" ] && [ -x "$JFVM_BINARY" ]; then
-        ("$JFVM_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "$OUTPUT" >/dev/null 2>&1) &
+    if [ -n "$jfcm_BINARY" ] && [ -x "$jfcm_BINARY" ]; then
+        ("$jfcm_BINARY" add-history-entry "$ACTIVE_VERSION" "$FULL_CMD" "$DURATION" "$EXIT_CODE" "$OUTPUT" >/dev/null 2>&1) &
     fi
 
     # Output the result immediately
@@ -392,22 +392,22 @@ fi
 // createWindowsShim creates the shim script for Windows
 func createWindowsShim() string {
 	return `@echo off
-REM jfvm shim - redirects jf commands to the active version
+REM jfcm shim - redirects jf commands to the active version
 
-REM Get the active version from jfvm config
-set JFVM_ROOT=%USERPROFILE%\.jfvm
-set CONFIG_FILE=%JFVM_ROOT%\config
+REM Get the active version from jfcm config
+set jfcm_ROOT=%USERPROFILE%\.jfcm
+set CONFIG_FILE=%jfcm_ROOT%\config
 
 if not exist "%CONFIG_FILE%" (
-    echo Error: No active jfvm version. Run 'jfvm use ^<version^>' first.
+    echo Error: No active jfcm version. Run 'jfcm use ^<version^>' first.
     exit /b 1
 )
 
 for /f "delims=" %%i in (%CONFIG_FILE%) do set ACTIVE_VERSION=%%i
-set BINARY_PATH=%JFVM_ROOT%\versions\%ACTIVE_VERSION%\jf.exe
+set BINARY_PATH=%jfcm_ROOT%\versions\%ACTIVE_VERSION%\jf.exe
 
 if not exist "%BINARY_PATH%" (
-    echo Error: Active version %ACTIVE_VERSION% not found. Run 'jfvm use ^<version^>' to fix.
+    echo Error: Active version %ACTIVE_VERSION% not found. Run 'jfcm use ^<version^>' to fix.
     exit /b 1
 )
 
@@ -419,24 +419,24 @@ REM Execute the binary with all arguments
 "%BINARY_PATH%" %*
 set EXIT_CODE=%ERRORLEVEL%
 
-REM Record command execution in history using jfvm binary
-where jfvm >nul 2>&1
+REM Record command execution in history using jfcm binary
+where jfcm >nul 2>&1
 if %ERRORLEVEL% == 0 (
-    jfvm add-history-entry "%ACTIVE_VERSION%" "%COMMAND%" "0" "%EXIT_CODE%" "Windows output capture not implemented" >nul 2>&1
+    jfcm add-history-entry "%ACTIVE_VERSION%" "%COMMAND%" "0" "%EXIT_CODE%" "Windows output capture not implemented" >nul 2>&1
 )
 `
 }
 
-// Unique block markers for jfvm PATH
+// Unique block markers for jfcm PATH
 const (
-	JfvmBlockStart = "# >>> jfvm PATH (managed by jfvm)"
-	JfvmBlockEnd   = "# <<< jfvm PATH (managed by jfvm)"
+	jfcmBlockStart = "# >>> jfcm PATH (managed by jfcm)"
+	jfcmBlockEnd   = "# <<< jfcm PATH (managed by jfcm)"
 )
 
-// UpdatePATH updates the user's shell profile to include jfvm shim in PATH with highest priority
+// UpdatePATH updates the user's shell profile to include jfcm shim in PATH with highest priority
 func UpdatePATH() error {
 	// First, clean up the old bin directory if it exists
-	oldBinDir := filepath.Join(JfvmRoot, "bin")
+	oldBinDir := filepath.Join(jfcmRoot, "bin")
 	if _, err := os.Stat(oldBinDir); err == nil {
 		fmt.Printf("Removing old bin directory: %s\n", oldBinDir)
 		if err := os.RemoveAll(oldBinDir); err != nil {
@@ -459,25 +459,25 @@ func UpdatePATH() error {
 	}
 	profileContent := string(content)
 
-	// Check if the correct jfvm block already exists
-	expectedBlock := fmt.Sprintf(`# >>> jfvm PATH (managed by jfvm)
+	// Check if the correct jfcm block already exists
+	expectedBlock := fmt.Sprintf(`# >>> jfcm PATH (managed by jfcm)
 export PATH="%s:$PATH"
-# <<< jfvm PATH (managed by jfvm)`, JfvmShim)
+# <<< jfcm PATH (managed by jfcm)`, jfcmShim)
 
 	// Check if the expected block is already present
 	if strings.Contains(profileContent, expectedBlock) {
-		fmt.Printf("✅ jfvm PATH already configured correctly in %s\n", primaryProfileFile)
+		fmt.Printf("✅ jfcm PATH already configured correctly in %s\n", primaryProfileFile)
 		return nil
 	}
 
-	// Remove any existing jfvm block
-	profileContent = RemoveJfvmBlock(profileContent)
+	// Remove any existing jfcm block
+	profileContent = RemovejfcmBlock(profileContent)
 
-	// Add jfvm shim PATH block
-	block := fmt.Sprintf(`# >>> jfvm PATH (managed by jfvm)
+	// Add jfcm shim PATH block
+	block := fmt.Sprintf(`# >>> jfcm PATH (managed by jfcm)
 export PATH="%s:$PATH"
-# <<< jfvm PATH (managed by jfvm)
-`, JfvmShim)
+# <<< jfcm PATH (managed by jfcm)
+`, jfcmShim)
 
 	// Ensure proper formatting: trim trailing whitespace and add newline if needed
 	profileContent = strings.TrimRight(profileContent, "\n\r\t ")
@@ -490,15 +490,15 @@ export PATH="%s:$PATH"
 		return fmt.Errorf("failed to write profile file: %w", err)
 	}
 
-	fmt.Printf("✅ Added jfvm shim to PATH with highest priority in %s\n", primaryProfileFile)
-	fmt.Printf("🔧 jfvm-managed jf will now take precedence over system installations\n")
+	fmt.Printf("✅ Added jfcm shim to PATH with highest priority in %s\n", primaryProfileFile)
+	fmt.Printf("🔧 jfcm-managed jf will now take precedence over system installations\n")
 	fmt.Printf("📝 Please restart your terminal or run: source %s\n", primaryProfileFile)
 
 	return nil
 }
 
-// RemoveJfvmBlock removes any existing jfvm PATH/function block from the profile content
-func RemoveJfvmBlock(content string) string {
+// RemovejfcmBlock removes any existing jfcm PATH/function block from the profile content
+func RemovejfcmBlock(content string) string {
 	lines := strings.Split(content, "\n")
 	var newLines []string
 	inBlock := false
@@ -507,18 +507,18 @@ func RemoveJfvmBlock(content string) string {
 		trimmedLine := strings.TrimSpace(line)
 
 		// Check for start marker (exact match)
-		if trimmedLine == JfvmBlockStart {
+		if trimmedLine == jfcmBlockStart {
 			inBlock = true
 			continue
 		}
 
 		// Check for end marker (exact match)
-		if inBlock && trimmedLine == JfvmBlockEnd {
+		if inBlock && trimmedLine == jfcmBlockEnd {
 			inBlock = false
 			continue
 		}
 
-		// Only keep lines that are not inside a jfvm block
+		// Only keep lines that are not inside a jfcm block
 		if !inBlock {
 			newLines = append(newLines, line)
 		}
@@ -571,11 +571,11 @@ func GetShellProfile(shell string) string {
 
 // GetActiveVersion returns the currently active version
 func GetActiveVersion() (string, error) {
-	if _, err := os.Stat(JfvmConfig); os.IsNotExist(err) {
+	if _, err := os.Stat(jfcmConfig); os.IsNotExist(err) {
 		return "", fmt.Errorf("no active version set")
 	}
 
-	content, err := os.ReadFile(JfvmConfig)
+	content, err := os.ReadFile(jfcmConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to read config: %w", err)
 	}
@@ -590,7 +590,7 @@ func GetActiveBinaryPath() (string, error) {
 		return "", err
 	}
 
-	binaryPath := filepath.Join(JfvmVersions, version, BinaryName)
+	binaryPath := filepath.Join(jfcmVersions, version, BinaryName)
 	if _, err := os.Stat(binaryPath); os.IsNotExist(err) {
 		return "", fmt.Errorf("active version %s not found", version)
 	}
@@ -600,7 +600,7 @@ func GetActiveBinaryPath() (string, error) {
 
 // CheckShimSetup checks if the shim is properly set up
 func CheckShimSetup() error {
-	shimPath := filepath.Join(JfvmShim, BinaryName)
+	shimPath := filepath.Join(jfcmShim, BinaryName)
 	if _, err := os.Stat(shimPath); os.IsNotExist(err) {
 		return fmt.Errorf("shim not found at %s", shimPath)
 	}
@@ -617,7 +617,7 @@ func CheckShimSetup() error {
 	return nil
 }
 
-// VerifyPriority checks if jfvm-managed jf has highest priority
+// VerifyPriority checks if jfcm-managed jf has highest priority
 func VerifyPriority() error {
 	// Check if shim exists
 	if err := CheckShimSetup(); err != nil {
@@ -628,12 +628,12 @@ func VerifyPriority() error {
 	path := os.Getenv("PATH")
 	pathDirs := strings.Split(path, string(os.PathListSeparator))
 
-	// Find jfvm shim in PATH
+	// Find jfcm shim in PATH
 	shimIndex := -1
 	systemJfIndex := -1
 
 	for i, dir := range pathDirs {
-		if strings.Contains(dir, ".jfvm/shim") {
+		if strings.Contains(dir, ".jfcm/shim") {
 			shimIndex = i
 		}
 		// Check for common system jf locations
@@ -645,11 +645,11 @@ func VerifyPriority() error {
 	}
 
 	if shimIndex == -1 {
-		return fmt.Errorf("jfvm shim not found in PATH")
+		return fmt.Errorf("jfcm shim not found in PATH")
 	}
 
 	if systemJfIndex != -1 && shimIndex > systemJfIndex {
-		return fmt.Errorf("jfvm shim is not first in PATH (index %d vs system index %d)", shimIndex, systemJfIndex)
+		return fmt.Errorf("jfcm shim is not first in PATH (index %d vs system index %d)", shimIndex, systemJfIndex)
 	}
 
 	return nil
@@ -658,13 +658,13 @@ func VerifyPriority() error {
 // SwitchToVersion switches to the specified version for command execution
 func SwitchToVersion(version string) error {
 	// Check if version exists
-	binPath := filepath.Join(JfvmVersions, version, BinaryName)
+	binPath := filepath.Join(jfcmVersions, version, BinaryName)
 	if _, err := os.Stat(binPath); os.IsNotExist(err) {
 		return fmt.Errorf("version %s not found", version)
 	}
 
 	// Write the version to config file
-	if err := os.WriteFile(JfvmConfig, []byte(version), 0644); err != nil {
+	if err := os.WriteFile(jfcmConfig, []byte(version), 0644); err != nil {
 		return fmt.Errorf("failed to write config file: %w", err)
 	}
 
@@ -725,11 +725,11 @@ func ValidateVersionAgainstProject(targetVersion string, versionExplicitlyProvid
 }
 
 func IsVersionBlocked(version string) (bool, error) {
-	if _, err := os.Stat(JfvmBlockFile); os.IsNotExist(err) {
+	if _, err := os.Stat(jfcmBlockFile); os.IsNotExist(err) {
 		return false, nil
 	}
 
-	content, err := os.ReadFile(JfvmBlockFile)
+	content, err := os.ReadFile(jfcmBlockFile)
 	if err != nil {
 		return false, fmt.Errorf("failed to read block file: %w", err)
 	}
@@ -759,8 +759,8 @@ func BlockVersion(version string) error {
 	}
 
 	var blockedVersions []string
-	if _, err := os.Stat(JfvmBlockFile); err == nil {
-		content, err := os.ReadFile(JfvmBlockFile)
+	if _, err := os.Stat(jfcmBlockFile); err == nil {
+		content, err := os.ReadFile(jfcmBlockFile)
 		if err != nil {
 			return fmt.Errorf("failed to read block file: %w", err)
 		}
@@ -772,7 +772,7 @@ func BlockVersion(version string) error {
 	blockedVersions = append(blockedVersions, version)
 
 	content := strings.Join(blockedVersions, "\n")
-	if err := os.WriteFile(JfvmBlockFile, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(jfcmBlockFile, []byte(content), 0644); err != nil {
 		return fmt.Errorf("failed to write block file: %w", err)
 	}
 
@@ -788,7 +788,7 @@ func UnblockVersion(version string) error {
 		return fmt.Errorf("version %s is not blocked", version)
 	}
 
-	content, err := os.ReadFile(JfvmBlockFile)
+	content, err := os.ReadFile(jfcmBlockFile)
 	if err != nil {
 		return fmt.Errorf("failed to read block file: %w", err)
 	}
@@ -804,11 +804,11 @@ func UnblockVersion(version string) error {
 
 	if len(newBlockedVersions) > 0 {
 		content := strings.Join(newBlockedVersions, "\n")
-		if err := os.WriteFile(JfvmBlockFile, []byte(content), 0644); err != nil {
+		if err := os.WriteFile(jfcmBlockFile, []byte(content), 0644); err != nil {
 			return fmt.Errorf("failed to write block file: %w", err)
 		}
 	} else {
-		if err := os.Remove(JfvmBlockFile); err != nil && !os.IsNotExist(err) {
+		if err := os.Remove(jfcmBlockFile); err != nil && !os.IsNotExist(err) {
 			return fmt.Errorf("failed to remove block file: %w", err)
 		}
 	}
@@ -817,11 +817,11 @@ func UnblockVersion(version string) error {
 }
 
 func GetBlockedVersions() ([]string, error) {
-	if _, err := os.Stat(JfvmBlockFile); os.IsNotExist(err) {
+	if _, err := os.Stat(jfcmBlockFile); os.IsNotExist(err) {
 		return []string{}, nil
 	}
 
-	content, err := os.ReadFile(JfvmBlockFile)
+	content, err := os.ReadFile(jfcmBlockFile)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read block file: %w", err)
 	}

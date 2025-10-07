@@ -25,31 +25,31 @@ print_error() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-print_status "Running jfvm E2E tests"
+print_status "Running jfcm E2E tests"
 print_status "Project root: $PROJECT_ROOT"
 
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Build jfvm
-print_status "Building jfvm..."
-if ! go build -o jfvm .; then
-    print_error "Failed to build jfvm"
+# Build jfcm
+print_status "Building jfcm..."
+if ! go build -o jfcm .; then
+    print_error "Failed to build jfcm"
     exit 1
 fi
 
-# Set the JFVM_PATH environment variable
-export JFVM_PATH="$PROJECT_ROOT/jfvm"
+# Set the jfcm_PATH environment variable
+export jfcm_PATH="$PROJECT_ROOT/jfcm"
 
-print_status "JFVM_PATH set to: $JFVM_PATH"
+print_status "jfcm_PATH set to: $jfcm_PATH"
 
 # Verify the binary exists and is executable
-if [ ! -x "$JFVM_PATH" ]; then
-    print_error "jfvm binary not found or not executable at $JFVM_PATH"
+if [ ! -x "$jfcm_PATH" ]; then
+    print_error "jfcm binary not found or not executable at $jfcm_PATH"
     exit 1
 fi
 
-print_status "jfvm binary is ready for testing"
+print_status "jfcm binary is ready for testing"
 
 # Run the tests
 print_status "Running E2E tests..."

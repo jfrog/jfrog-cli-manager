@@ -1,4 +1,4 @@
-# jfvm E2E Test Configuration
+# jfcm E2E Test Configuration
 
 # Test timeouts (in seconds)
 timeouts:
@@ -114,6 +114,6 @@ test_data:
 
 # Environment variables for tests
 environment:
-  JFVM_DEBUG: "1"
-  JFVM_PATH: "./jfvm"
+  jfcm_DEBUG: "1"
+  jfcm_PATH: "./jfcm"
   TEST_TIMEOUT: "300s" 

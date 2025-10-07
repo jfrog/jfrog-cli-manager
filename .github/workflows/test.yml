@@ -35,16 +35,16 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Build jfvm
+      - name: Build jfcm
         run: |
           make build-release
-          chmod +x jfvm
+          chmod +x jfcm
 
 
 
       - name: Run E2E tests
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
           TEST_TIMEOUT: "10m"
         run: |
           go test -v -timeout 10m ./tests/e2e/...
@@ -60,23 +60,23 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Build jfvm
+      - name: Build jfcm
         run: |
           make build-release
-          chmod +x jfvm
+          chmod +x jfcm
 
       - name: Test enhanced priority system
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
           # Install a test version
-          ./jfvm install 2.74.0
+          ./jfcm install 2.74.0
           
           # Use the version
-          ./jfvm use 2.74.0
+          ./jfcm use 2.74.0
           
-          # Export jfvm shim to PATH directly (avoid shell profile issues)
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Export jfcm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Verify which jf is being used
           which jf
@@ -85,31 +85,31 @@ jobs:
           jf --version
           
           # Run health check to verify priority
-          ./jfvm health-check --verbose
+          ./jfcm health-check --verbose
 
       - name: Test health check with fixes
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
           # Test health check with fix flag
-          ./jfvm health-check --fix
+          ./jfcm health-check --fix
           
-          # Export jfvm shim to PATH directly (avoid shell profile issues)
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Export jfcm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Verify PATH configuration
           echo "PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
           
           # Test which jf again
           which jf
           
           # Final health check
-          ./jfvm health-check
+          ./jfcm health-check
 
       - name: Run E2E tests
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
           TEST_TIMEOUT: "10m"
         run: |
           go test -v -timeout 10m ./tests/e2e/...
@@ -123,27 +123,27 @@ jobs:
       - name: Set up Homebrew
         uses: Homebrew/actions/setup-homebrew@master
 
-      - name: Install jfvm via Homebrew
+      - name: Install jfcm via Homebrew
         run: |
           # Add the jfrog tap
           brew tap jfrog/jfrog-cli-vm
           
-          # Install jfvm
-          brew install jfvm
+          # Install jfcm
+          brew install jfcm
           
           # Verify installation
-          jfvm --version
+          jfcm --version
 
       - name: Test enhanced priority system
         run: |
           # Install a test version
-          jfvm install 2.74.0
+          jfcm install 2.74.0
           
           # Use the version
-          jfvm use 2.74.0
+          jfcm use 2.74.0
           
-          # Export jfvm shim to PATH directly (avoid shell profile issues)
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Export jfcm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Verify which jf is being used
           which jf
@@ -152,35 +152,35 @@ jobs:
           jf --version
           
           # Run health check to verify priority
-          jfvm health-check --verbose
+          jfcm health-check --verbose
 
       - name: Test health check with fixes
         run: |
           # Test health check with fix flag
-          jfvm health-check --fix
+          jfcm health-check --fix
           
-          # Export jfvm shim to PATH directly (avoid shell profile issues)
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          # Export jfcm shim to PATH directly (avoid shell profile issues)
+          export PATH="$HOME/.jfcm/shim:$PATH"
           
           # Verify PATH configuration
           echo "PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
           
           # Test which jf again
           which jf
           
           # Final health check
-          jfvm health-check
+          jfcm health-check
 
       - name: Test latest version functionality
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           # Test using a specific version instead of latest to avoid API issues
-          jfvm use 2.77.0
+          jfcm use 2.77.0
           
           # Fix PATH configuration and source the profile
-          jfvm health-check --fix
+          jfcm health-check --fix
           source ~/.bash_profile
           
           # Verify latest version is active
@@ -190,13 +190,13 @@ jobs:
       - name: Test performance and security checks
         run: |
           # Test health check with performance and security flags
-          jfvm health-check --performance --security --verbose
+          jfcm health-check --performance --security --verbose
 
       - name: Cleanup
         if: always()
         run: |
-          # Uninstall jfvm
-          brew uninstall jfvm || true
+          # Uninstall jfcm
+          brew uninstall jfcm || true
           
           # Remove tap
           brew untap jfrog/jfrog-cli-vm || true
@@ -216,15 +216,15 @@ jobs:
       - name: Build and test integration
         run: |
           make build-release
-          chmod +x jfvm
+          chmod +x jfcm
           
           # Test basic functionality
-          ./jfvm --help
-          ./jfvm list
-          ./jfvm health-check
+          ./jfcm --help
+          ./jfcm list
+          ./jfcm health-check
           
           # Test that binary works correctly
-          ./jfvm --version
+          ./jfcm --version
 
   upload-artifacts:
     runs-on: ubuntu-latest

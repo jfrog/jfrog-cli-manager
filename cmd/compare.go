@@ -92,7 +92,7 @@ var CompareChangelog = &cli.Command{
 		// Validate and resolve versions
 		config, err := validateAndResolveVersions(args, 2)
 		if err != nil {
-			return cli.Exit("Usage: jfvm compare changelog <version1> <version2>", 1)
+			return cli.Exit("Usage: jfcm compare changelog <version1> <version2>", 1)
 		}
 
 		// Handle changelog comparison
@@ -132,13 +132,13 @@ var CompareCli = &cli.Command{
 		// Validate and resolve versions
 		config, err := validateAndResolveVersions(args, 3)
 		if err != nil {
-			return cli.Exit("Usage: jfvm compare cli <version1> <version2> -- <jf-command> [args...]", 1)
+			return cli.Exit("Usage: jfcm compare cli <version1> <version2> -- <jf-command> [args...]", 1)
 		}
 
 		// Validate CLI-specific arguments
 		jfCommand, err := validateCLIArguments(args)
 		if err != nil {
-			return cli.Exit("Missing '--' separator. Usage: jfvm compare cli <version1> <version2> -- <jf-command> [args...]", 1)
+			return cli.Exit("Missing '--' separator. Usage: jfcm compare cli <version1> <version2> -- <jf-command> [args...]", 1)
 		}
 
 		// Check if versions exist
@@ -215,7 +215,7 @@ var CompareRt = &cli.Command{
 		// Validate RT-specific arguments
 		server1, server2, jfCommand, err := validateRTArguments(args)
 		if err != nil {
-			return cli.Exit("Usage: jfvm compare rt <server1> <server2> -- <jf-command> [args...]", 1)
+			return cli.Exit("Usage: jfcm compare rt <server1> <server2> -- <jf-command> [args...]", 1)
 		}
 
 		fmt.Printf("🔄 Comparing JFrog CLI command across servers: %s vs %s\n", server1, server2)

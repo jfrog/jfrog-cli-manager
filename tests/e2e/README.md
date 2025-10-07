@@ -1,6 +1,6 @@
-# jfvm End-to-End (E2E) Test Suite
+# jfcm End-to-End (E2E) Test Suite
 
-This directory contains comprehensive end-to-end tests for the jfvm CLI tool. These tests verify that all features work correctly across different platforms and scenarios.
+This directory contains comprehensive end-to-end tests for the jfcm CLI tool. These tests verify that all features work correctly across different platforms and scenarios.
 
 ## 🧪 Test Coverage
 
@@ -117,10 +117,10 @@ gh workflow run e2e-tests.yml -f platform=macos
 ## 🔧 Test Configuration
 
 ### Environment Variables
-- `JFVM_PATH`: Path to jfvm binary
+- `jfcm_PATH`: Path to jfcm binary
 - `TEST_TIMEOUT_OVERRIDE`: Custom test timeout
 - `TEST_FILTER`: Run specific test patterns
-- `JFVM_DEBUG`: Enable debug output
+- `jfcm_DEBUG`: Enable debug output
 
 ### Test Timeouts
 - **Short**: 30s (quick operations)
@@ -163,14 +163,14 @@ GitHub Actions provides:
 
 3. **Binary Not Found**
    ```bash
-   # Set correct JFVM_PATH
-   JFVM_PATH=/path/to/jfvm make test-e2e-local
+   # Set correct jfcm_PATH
+   jfcm_PATH=/path/to/jfcm make test-e2e-local
    ```
 
 ### Debug Mode
 ```bash
 # Enable debug output
-JFVM_DEBUG=1 make test-e2e-local
+jfcm_DEBUG=1 make test-e2e-local
 ```
 
 ### Running Individual Tests
@@ -261,4 +261,4 @@ func TestNewFeature(t *testing.T) {
 
 - [Go Testing Package](https://golang.org/pkg/testing/)
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [jfvm Main Documentation](../README.md) 
+- [jfcm Main Documentation](../README.md) 

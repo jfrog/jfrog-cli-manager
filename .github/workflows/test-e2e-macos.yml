@@ -19,31 +19,31 @@ jobs:
         with:
           go-version: '1.24'
 
-      - name: Build jfvm
+      - name: Build jfcm
         run: |
           make build-release
-          chmod +x jfvm
+          chmod +x jfcm
 
-      - name: Set up jfvm environment
+      - name: Set up jfcm environment
         run: |
-          echo "Setting up jfvm environment..."
+          echo "Setting up jfcm environment..."
           # Install a test version
-          ./jfvm install 2.74.0
+          ./jfcm install 2.74.0
           # Use the version to create the shim
-          ./jfvm use 2.74.0
+          ./jfcm use 2.74.0
           # Add shim to PATH
-          echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+          echo "$HOME/.jfcm/shim" >> $GITHUB_PATH
           # Verify shim is working
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           which jf
           jf --version
 
       - name: Run E2E tests
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
           TEST_TIMEOUT: "10m"
         run: |
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           # Run core functionality tests
           echo "Running core functionality tests..."
           go test -v -timeout 10m ./tests/e2e/... -run "TestCoreVersionManagement"
@@ -58,14 +58,14 @@ jobs:
 
       - name: Test enhanced priority system
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           # Install a test version
-          ./jfvm install 2.74.0
+          ./jfcm install 2.74.0
           
           # Use the version
-          ./jfvm use 2.74.0
+          ./jfcm use 2.74.0
           
           # Verify which jf is being used
           which jf
@@ -74,47 +74,47 @@ jobs:
           jf --version
           
           # Run health check to verify priority
-          ./jfvm health-check --verbose
+          ./jfcm health-check --verbose
 
       - name: Test health check with fixes
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           # Test health check with fix flag
-          ./jfvm health-check --fix
+          ./jfcm health-check --fix
           
           # Verify PATH configuration
           echo "PATH entries:"
-          echo $PATH | tr ':' '\n' | grep jfvm || echo "No jfvm entries found"
+          echo $PATH | tr ':' '\n' | grep jfcm || echo "No jfcm entries found"
           
           # Test which jf again
           which jf
           
           # Final health check
-          ./jfvm health-check
+          ./jfcm health-check
 
       - name: Test latest version functionality
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           # Test using latest version
-          ./jfvm use latest
+          ./jfcm use latest
           
           # Verify latest version is active
           jf --version
           
           # Check health status
-          ./jfvm health-check
+          ./jfcm health-check
 
       - name: Test performance and security checks
         env:
-          JFVM_PATH: ${{ github.workspace }}/jfvm
+          jfcm_PATH: ${{ github.workspace }}/jfcm
         run: |
-          export PATH="$HOME/.jfvm/shim:$PATH"
+          export PATH="$HOME/.jfcm/shim:$PATH"
           # Test health check with performance and security flags
-          ./jfvm health-check --performance --security --verbose
+          ./jfcm health-check --performance --security --verbose
 
       - name: Upload test artifacts
         if: always()

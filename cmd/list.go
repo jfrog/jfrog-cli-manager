@@ -36,10 +36,10 @@ var List = &cli.Command{
 }
 
 func displaySimpleList() error {
-	currentData, _ := os.ReadFile(utils.JfvmConfig)
+	currentData, _ := os.ReadFile(utils.jfcmConfig)
 	current := string(currentData)
 
-	entries, err := os.ReadDir(utils.JfvmVersions)
+	entries, err := os.ReadDir(utils.jfcmVersions)
 	if err != nil {
 		return err
 	}
@@ -59,10 +59,10 @@ func displaySimpleList() error {
 }
 
 func displayEnhancedList(noColor bool) error {
-	currentData, _ := os.ReadFile(utils.JfvmConfig)
+	currentData, _ := os.ReadFile(utils.jfcmConfig)
 	current := string(currentData)
 
-	entries, err := os.ReadDir(utils.JfvmVersions)
+	entries, err := os.ReadDir(utils.jfcmVersions)
 	if err != nil {
 		return err
 	}
@@ -139,7 +139,7 @@ func displayEnhancedList(noColor bool) error {
 	for _, entry := range entries {
 		if entry.IsDir() {
 			version := entry.Name()
-			versionPath := filepath.Join(utils.JfvmVersions, version)
+			versionPath := filepath.Join(utils.jfcmVersions, version)
 
 			info := VersionInfo{
 				Name:       version,

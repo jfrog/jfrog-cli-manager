@@ -17,7 +17,7 @@ import (
 const (
 	DefaultPerPage = 30               // GitHub API default page size
 	DefaultTimeout = 30 * time.Second // Reasonable timeout for API calls
-	UserAgent      = "jfvm/1.0"       // Identify our tool to GitHub
+	UserAgent      = "jfcm/1.0"       // Identify our tool to GitHub
 	MaxConcurrent  = 5                // Max concurrent requests
 )
 

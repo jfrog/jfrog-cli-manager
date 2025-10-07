@@ -19,7 +19,7 @@ on:
 
 env:
   GO_VERSION: '1.23'
-  JFVM_PATH: ${{ github.workspace }}/jfvm
+  jfcm_PATH: ${{ github.workspace }}/jfcm
 
 jobs:
   test-ubuntu:
@@ -40,33 +40,33 @@ jobs:
     - name: Install dependencies
       run: go mod download
 
-    - name: Build jfvm
+    - name: Build jfcm
       run: |
-        echo "Building jfvm for Ubuntu..."
-        go build -o jfvm .
-        chmod +x jfvm
-        ./jfvm --version
+        echo "Building jfcm for Ubuntu..."
+        go build -o jfcm .
+        chmod +x jfcm
+        ./jfcm --version
 
-    - name: Set up jfvm environment
+    - name: Set up jfcm environment
       run: |
-        echo "Setting up jfvm environment..."
+        echo "Setting up jfcm environment..."
         # Install a test version
-        ./jfvm install 2.74.0
+        ./jfcm install 2.74.0
         # Use the version to create the shim
-        ./jfvm use 2.74.0
+        ./jfcm use 2.74.0
         # Add shim to PATH
-        echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+        echo "$HOME/.jfcm/shim" >> $GITHUB_PATH
         # Verify shim is working
-        export PATH="$HOME/.jfvm/shim:$PATH"
+        export PATH="$HOME/.jfcm/shim:$PATH"
         which jf
         jf --version
 
     - name: Run E2E tests
       env:
-        JFVM_PATH: ${{ github.workspace }}/jfvm
+        jfcm_PATH: ${{ github.workspace }}/jfcm
       run: |
         echo "Running E2E tests on Ubuntu..."
-        export PATH="$HOME/.jfvm/shim:$PATH"
+        export PATH="$HOME/.jfcm/shim:$PATH"
         chmod +x tests/e2e/run_ci_tests.sh
         ./tests/e2e/run_ci_tests.sh
 
@@ -106,33 +106,33 @@ jobs:
     - name: Install dependencies
       run: go mod download
 
-    - name: Build jfvm
+    - name: Build jfcm
       run: |
-        echo "Building jfvm for macOS..."
-        go build -o jfvm .
-        chmod +x jfvm
-        ./jfvm --version
+        echo "Building jfcm for macOS..."
+        go build -o jfcm .
+        chmod +x jfcm
+        ./jfcm --version
 
-    - name: Set up jfvm environment
+    - name: Set up jfcm environment
       run: |
-        echo "Setting up jfvm environment..."
+        echo "Setting up jfcm environment..."
         # Install a test version
-        ./jfvm install 2.74.0
+        ./jfcm install 2.74.0
         # Use the version to create the shim
-        ./jfvm use 2.74.0
+        ./jfcm use 2.74.0
         # Add shim to PATH
-        echo "$HOME/.jfvm/shim" >> $GITHUB_PATH
+        echo "$HOME/.jfcm/shim" >> $GITHUB_PATH
         # Verify shim is working
-        export PATH="$HOME/.jfvm/shim:$PATH"
+        export PATH="$HOME/.jfcm/shim:$PATH"
         which jf
         jf --version
 
     - name: Run E2E tests
       env:
-        JFVM_PATH: ${{ github.workspace }}/jfvm
+        jfcm_PATH: ${{ github.workspace }}/jfcm
       run: |
         echo "Running E2E tests on macOS..."
-        export PATH="$HOME/.jfvm/shim:$PATH"
+        export PATH="$HOME/.jfcm/shim:$PATH"
         chmod +x tests/e2e/run_ci_tests.sh
         ./tests/e2e/run_ci_tests.sh
 
@@ -213,10 +213,10 @@ jobs:
       with:
         go-version: ${{ env.GO_VERSION }}
 
-    - name: Build jfvm
+    - name: Build jfcm
       run: |
-        go build -o jfvm .
-        chmod +x jfvm
+        go build -o jfcm .
+        chmod +x jfcm
 
     - name: Run performance tests
       run: |

@@ -12,7 +12,7 @@ import (
 
 var Link = &cli.Command{
 	Name:  "link",
-	Usage: "Link a local jf binary into jfvm",
+	Usage: "Link a local jf binary into jfcm",
 	Flags: []cli.Flag{
 		&cli.StringFlag{Name: "from", Usage: "Path to the local jf binary", Required: true},
 		&cli.StringFlag{Name: "name", Usage: "Version name to assign", Required: true},
@@ -25,7 +25,7 @@ var Link = &cli.Command{
 			return fmt.Errorf("no such file: %s", from)
 		}
 
-		targetDir := filepath.Join(utils.JfvmVersions, name)
+		targetDir := filepath.Join(utils.jfcmVersions, name)
 		targetBin := filepath.Join(targetDir, utils.BinaryName)
 		err := os.MkdirAll(targetDir, 0755)
 		if err != nil {
@@ -55,7 +55,7 @@ var Link = &cli.Command{
 			return err
 		}
 
-		fmt.Printf("✅ Linked %s as jfvm version %s\n", from, name)
+		fmt.Printf("✅ Linked %s as jfcm version %s\n", from, name)
 		return nil
 	},
 }

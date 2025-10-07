@@ -8,13 +8,13 @@ GOARCH="$3"
 BINARY_PATH="$4"
 
 OUT="dist/$GOOS-$GOARCH"
-BIN_NAME="jfvm"
+BIN_NAME="jfcm"
 EXT=""
 if [ "$GOOS" = "windows" ]; then 
   EXT=".exe"
 fi
 
-BASENAME="jfvm-${VERSION}-$GOOS-$GOARCH"
+BASENAME="jfcm-${VERSION}-$GOOS-$GOARCH"
 
 echo "📦 Packaging for $GOOS/$GOARCH"
 echo "  Basename: $BASENAME"

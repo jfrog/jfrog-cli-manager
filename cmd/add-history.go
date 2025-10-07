@@ -12,7 +12,7 @@ import (
 var AddHistoryEntryCmd = &cli.Command{
 	Name:        "add-history-entry",
 	Usage:       "Add a history entry (internal use)",
-	Description: "Internal command used by jfvm shim to record command execution history",
+	Description: "Internal command used by jfcm shim to record command execution history",
 	Hidden:      true, // Hide this command from help output
 	Action: func(c *cli.Context) error {
 		if c.Args().Len() < 5 {
@@ -25,8 +25,8 @@ var AddHistoryEntryCmd = &cli.Command{
 		exitCodeStr := c.Args().Get(3)
 		output := c.Args().Get(4)
 
-		// Skip recording jfvm commands - only record actual jf commands
-		if strings.HasPrefix(command, "jfvm ") {
+		// Skip recording jfcm commands - only record actual jf commands
+		if strings.HasPrefix(command, "jfcm ") {
 			return nil
 		}
 

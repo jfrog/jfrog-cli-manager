@@ -1,4 +1,4 @@
-name: Release jfvm
+name: Release jfcm
 
 on:
   push:
@@ -98,7 +98,7 @@ jobs:
         with:
           name: "artifacts-${{ matrix.goos }}-${{ matrix.goarch }}"
           path: |
-            jfvm-${{ needs.validate.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}*
+            jfcm-${{ needs.validate.outputs.tag }}-${{ matrix.goos }}-${{ matrix.goarch }}*
           if-no-files-found: error
           retention-days: 30
 
@@ -139,29 +139,29 @@ jobs:
             
             if [[ "$platform" == "windows-amd64" ]]; then
               # Windows files
-              if [[ ! -f "jfvm-${VERSION}-${platform}.zip" ]]; then
-                echo "❌ Error: Missing Windows ZIP: jfvm-${VERSION}-${platform}.zip"
+              if [[ ! -f "jfcm-${VERSION}-${platform}.zip" ]]; then
+                echo "❌ Error: Missing Windows ZIP: jfcm-${VERSION}-${platform}.zip"
                 exit 1
               fi
-              if [[ ! -f "jfvm-${VERSION}-${platform}.exe" ]]; then
-                echo "❌ Error: Missing Windows binary: jfvm-${VERSION}-${platform}.exe"
+              if [[ ! -f "jfcm-${VERSION}-${platform}.exe" ]]; then
+                echo "❌ Error: Missing Windows binary: jfcm-${VERSION}-${platform}.exe"
                 exit 1
               fi
             else
               # Unix files
-              if [[ ! -f "jfvm-${VERSION}-${platform}.tar.gz" ]]; then
-                echo "❌ Error: Missing Unix tar.gz: jfvm-${VERSION}-${platform}.tar.gz"
+              if [[ ! -f "jfcm-${VERSION}-${platform}.tar.gz" ]]; then
+                echo "❌ Error: Missing Unix tar.gz: jfcm-${VERSION}-${platform}.tar.gz"
                 exit 1
               fi
-              if [[ ! -f "jfvm-${VERSION}-${platform}" ]]; then
-                echo "❌ Error: Missing Unix binary: jfvm-${VERSION}-${platform}"
+              if [[ ! -f "jfcm-${VERSION}-${platform}" ]]; then
+                echo "❌ Error: Missing Unix binary: jfcm-${VERSION}-${platform}"
                 exit 1
               fi
             fi
           done
           
           # Count total files
-          TOTAL_FILES=$(ls -1 jfvm-${VERSION}-* | wc -l)
+          TOTAL_FILES=$(ls -1 jfcm-${VERSION}-* | wc -l)
           echo "✅ Found $TOTAL_FILES release files"
           echo "total_files=$TOTAL_FILES" >> $GITHUB_OUTPUT
           
@@ -169,18 +169,18 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.validate.outputs.tag }}
-          name: "jfvm ${{ needs.validate.outputs.tag }}"
+          name: "jfcm ${{ needs.validate.outputs.tag }}"
           files: |
-            jfvm-${{ needs.validate.outputs.tag }}-*.tar.gz
-            jfvm-${{ needs.validate.outputs.tag }}-*.tar.gz.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-*.zip
-            jfvm-${{ needs.validate.outputs.tag }}-*.zip.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-linux-*
-            jfvm-${{ needs.validate.outputs.tag }}-linux-*.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-darwin-*
-            jfvm-${{ needs.validate.outputs.tag }}-darwin-*.sha256
-            jfvm-${{ needs.validate.outputs.tag }}-windows-*.exe
-            jfvm-${{ needs.validate.outputs.tag }}-windows-*.exe.sha256
+            jfcm-${{ needs.validate.outputs.tag }}-*.tar.gz
+            jfcm-${{ needs.validate.outputs.tag }}-*.tar.gz.sha256
+            jfcm-${{ needs.validate.outputs.tag }}-*.zip
+            jfcm-${{ needs.validate.outputs.tag }}-*.zip.sha256
+            jfcm-${{ needs.validate.outputs.tag }}-linux-*
+            jfcm-${{ needs.validate.outputs.tag }}-linux-*.sha256
+            jfcm-${{ needs.validate.outputs.tag }}-darwin-*
+            jfcm-${{ needs.validate.outputs.tag }}-darwin-*.sha256
+            jfcm-${{ needs.validate.outputs.tag }}-windows-*.exe
+            jfcm-${{ needs.validate.outputs.tag }}-windows-*.exe.sha256
           generate_release_notes: true
           draft: false
           prerelease: ${{ contains(needs.validate.outputs.tag, '-') }}
@@ -214,10 +214,10 @@ jobs:
           echo "🔍 Extracting checksums for Homebrew formula generation"
           
           # Extract checksums with error checking
-          DARWIN_AMD_SHA="$(awk '{print $1}' "jfvm-${TAG}-darwin-amd64.tar.gz.sha256")"
-          DARWIN_ARM_SHA="$(awk '{print $1}' "jfvm-${TAG}-darwin-arm64.tar.gz.sha256")"
-          LINUX_AMD_SHA="$(awk '{print $1}' "jfvm-${TAG}-linux-amd64.tar.gz.sha256")"
-          LINUX_ARM_SHA="$(awk '{print $1}' "jfvm-${TAG}-linux-arm64.tar.gz.sha256")"
+          DARWIN_AMD_SHA="$(awk '{print $1}' "jfcm-${TAG}-darwin-amd64.tar.gz.sha256")"
+          DARWIN_ARM_SHA="$(awk '{print $1}' "jfcm-${TAG}-darwin-arm64.tar.gz.sha256")"
+          LINUX_AMD_SHA="$(awk '{print $1}' "jfcm-${TAG}-linux-amd64.tar.gz.sha256")"
+          LINUX_ARM_SHA="$(awk '{print $1}' "jfcm-${TAG}-linux-arm64.tar.gz.sha256")"
           
           # Generate formula
           ./.github/scripts/generate-homebrew-formula.sh \
@@ -236,5 +236,5 @@ jobs:
         uses: actions/upload-artifact@v4.6.2
         with:
           name: homebrew-formula
-          path: jfvm.rb
+          path: jfcm.rb
           retention-days: 90

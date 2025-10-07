@@ -1,6 +1,6 @@
 # GitHub Actions Scripts
 
-Essential scripts for the jfvm release workflow.
+Essential scripts for the jfcm release workflow.
 
 ## Scripts
 
@@ -12,7 +12,7 @@ env GITHUB_EVENT_NAME="workflow_dispatch" INPUT_TAG="v1.0.0" ./validate-tag.sh
 ```
 
 ### `build-binary.sh`
-Builds jfvm binary for specific platform/architecture.
+Builds jfcm binary for specific platform/architecture.
 
 ```bash
 ./build-binary.sh <version> <goos> <goarch>

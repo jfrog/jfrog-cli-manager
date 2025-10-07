@@ -37,11 +37,11 @@ var Install = CommandDescription{
 	Description: "Downloads and installs the specified version of JFrog CLI from JFrog's public release server.",
 	Examples: []Example{
 		{
-			Command:     "jfvm install 2.74.0",
+			Command:     "jfcm install 2.74.0",
 			Description: "Install JFrog CLI version 2.74.0",
 		},
 		{
-			Command:     "jfvm install latest",
+			Command:     "jfcm install latest",
 			Description: "Install the latest available version",
 		},
 	},
@@ -52,19 +52,19 @@ var Use = CommandDescription{
 	Description: "Activates the given version or alias. If .jfrog-version exists in the current directory, that will be used if no argument is passed.",
 	Examples: []Example{
 		{
-			Command:     "jfvm use 2.74.0",
+			Command:     "jfcm use 2.74.0",
 			Description: "Switch to JFrog CLI version 2.74.0",
 		},
 		{
-			Command:     "jfvm use latest",
+			Command:     "jfcm use latest",
 			Description: "Switch to the latest available version (downloads if not installed)",
 		},
 		{
-			Command:     "jfvm use prod",
+			Command:     "jfcm use prod",
 			Description: "Switch to the version aliased as 'prod'",
 		},
 		{
-			Command:     "jfvm use",
+			Command:     "jfcm use",
 			Description: "Use version from .jfrog-version file",
 		},
 	},
@@ -75,7 +75,7 @@ var List = CommandDescription{
 	Description: "Shows all installed versions and highlights the currently active one.",
 	Examples: []Example{
 		{
-			Command:     "jfvm list",
+			Command:     "jfcm list",
 			Description: "Show all installed versions",
 		},
 	},
@@ -86,11 +86,11 @@ var Remove = CommandDescription{
 	Description: "Removes a specific version of JFrog CLI from your system.",
 	Examples: []Example{
 		{
-			Command:     "jfvm remove 2.72.1",
+			Command:     "jfcm remove 2.72.1",
 			Description: "Remove JFrog CLI version 2.72.1",
 		},
 		{
-			Command:     "jfvm remove old-dev",
+			Command:     "jfcm remove old-dev",
 			Description: "Remove a linked version named 'old-dev'",
 		},
 	},
@@ -101,7 +101,7 @@ var Clear = CommandDescription{
 	Description: "Removes all installed versions of JFrog CLI. This action cannot be undone.",
 	Examples: []Example{
 		{
-			Command:     "jfvm clear",
+			Command:     "jfcm clear",
 			Description: "Remove all installed versions",
 		},
 	},
@@ -112,15 +112,15 @@ var Alias = CommandDescription{
 	Description: "Defines an alias for a specific version with optional description, making it easier to identify and reference commonly used versions.",
 	Examples: []Example{
 		{
-			Command:     "jfvm alias set --description \"Development environment version\" dev 2.74.0",
+			Command:     "jfcm alias set --description \"Development environment version\" dev 2.74.0",
 			Description: "Create alias 'dev' with description pointing to version 2.74.0",
 		},
 		{
-			Command:     "jfvm alias prod 2.73.0",
+			Command:     "jfcm alias prod 2.73.0",
 			Description: "Create alias 'prod' pointing to version 2.73.0",
 		},
 		{
-			Command:     "jfvm alias staging 2.77.0",
+			Command:     "jfcm alias staging 2.77.0",
 			Description: "Create alias 'staging' pointing to specific version",
 		},
 	},
@@ -128,14 +128,14 @@ var Alias = CommandDescription{
 
 var Link = CommandDescription{
 	Usage:       "Link a locally built JFrog CLI binary",
-	Description: "Links a locally built jf binary to be used via jfvm. Useful for development and testing custom builds.",
+	Description: "Links a locally built jf binary to be used via jfcm. Useful for development and testing custom builds.",
 	Examples: []Example{
 		{
-			Command:     "jfvm link --from /Users/dev/go/bin/jf --name local-dev",
+			Command:     "jfcm link --from /Users/dev/go/bin/jf --name local-dev",
 			Description: "Link a local binary as 'local-dev'",
 		},
 		{
-			Command:     "jfvm link --from ./jf --name custom-build",
+			Command:     "jfcm link --from ./jf --name custom-build",
 			Description: "Link relative path binary as 'custom-build'",
 		},
 	},
@@ -146,43 +146,43 @@ var Compare = CommandDescription{
 	Description: "Compare JFrog CLI versions with three specialized subcommands: 'changelog' for comparing release notes, 'cli' for comparing command execution outputs between different CLI versions, and 'rt' for comparing command execution outputs between different servers with git-like diff visualization.",
 	Examples: []Example{
 		{
-			Command:     "jfvm compare changelog v2.75.1 v2.76.0",
+			Command:     "jfcm compare changelog v2.75.1 v2.76.0",
 			Description: "Compare release notes between two versions",
 		},
 		{
-			Command:     "jfvm compare cli 2.74.0 2.73.0 -- --version",
+			Command:     "jfcm compare cli 2.74.0 2.73.0 -- --version",
 			Description: "Compare version command output between releases",
 		},
 		{
-			Command:     "jfvm compare cli prod dev -- rt ping",
+			Command:     "jfcm compare cli prod dev -- rt ping",
 			Description: "Compare command outputs using aliases",
 		},
 		{
-			Command:     "jfvm compare rt server1 server2 -- rt ping",
+			Command:     "jfcm compare rt server1 server2 -- rt ping",
 			Description: "Compare rt ping command across two servers",
 		},
 		{
-			Command:     "jfvm compare rt prod dev -- rt search \"*.jar\"",
+			Command:     "jfcm compare rt prod dev -- rt search \"*.jar\"",
 			Description: "Compare search results across two server configurations",
 		},
 		{
-			Command:     "jfvm compare cli 2.74.0 2.73.0 -- config show --unified",
+			Command:     "jfcm compare cli 2.74.0 2.73.0 -- config show --unified",
 			Description: "Show unified diff format for CLI comparison",
 		},
 		{
-			Command:     "jfvm compare rt server1 server2 -- config show --unified",
+			Command:     "jfcm compare rt server1 server2 -- config show --unified",
 			Description: "Show unified diff format for server comparison",
 		},
 		{
-			Command:     "jfvm compare changelog v2.74.0 v2.73.0 --no-color",
+			Command:     "jfcm compare changelog v2.74.0 v2.73.0 --no-color",
 			Description: "Compare changelogs without colored output",
 		},
 		{
-			Command:     "jfvm compare cli old new -- rt search \"*.jar\" --no-color --timing",
+			Command:     "jfcm compare cli old new -- rt search \"*.jar\" --no-color --timing",
 			Description: "CLI comparison with custom formatting options",
 		},
 		{
-			Command:     "jfvm compare rt main backup -- rt repos show --timeout 60",
+			Command:     "jfcm compare rt main backup -- rt repos show --timeout 60",
 			Description: "Server comparison with custom timeout",
 		},
 	},
@@ -193,19 +193,19 @@ var Benchmark = CommandDescription{
 	Description: "Run performance benchmarks for JFrog CLI commands across multiple versions. Measures execution time, success rate, and provides statistical analysis.",
 	Examples: []Example{
 		{
-			Command:     "jfvm benchmark 2.74.0,2.73.0,2.72.0 -- --version",
+			Command:     "jfcm benchmark 2.74.0,2.73.0,2.72.0 -- --version",
 			Description: "Benchmark across multiple versions",
 		},
 		{
-			Command:     "jfvm benchmark prod,dev,latest -- rt ping --iterations 10 --detailed",
+			Command:     "jfcm benchmark prod,dev,latest -- rt ping --iterations 10 --detailed",
 			Description: "Custom iterations with detailed output",
 		},
 		{
-			Command:     "jfvm benchmark 2.74.0,2.73.0 -- config show --format json",
+			Command:     "jfcm benchmark 2.74.0,2.73.0 -- config show --format json",
 			Description: "Export results as JSON",
 		},
 		{
-			Command:     "jfvm benchmark 2.74.0,2.73.0 -- rt search \"*.jar\" --format csv",
+			Command:     "jfcm benchmark 2.74.0,2.73.0 -- rt search \"*.jar\" --format csv",
 			Description: "Export results as CSV",
 		},
 	},
@@ -216,42 +216,42 @@ var History = CommandDescription{
 	Description: "Display historical usage patterns for JFrog CLI versions. Tracks when versions were used, most common commands, usage trends, and command outputs.",
 	Examples: []Example{
 		{
-			Command:     "jfvm history",
+			Command:     "jfcm history",
 			Description: "Show recent usage history",
 		},
 		{
-			Command:     "jfvm history --limit 20",
+			Command:     "jfcm history --limit 20",
 			Description: "Show last 20 entries",
 		},
 		{
-			Command:     "jfvm history --stats",
+			Command:     "jfcm history --stats",
 			Description: "Show detailed statistics",
 		},
 		{
-			Command:     "jfvm history --version 2.74.0",
+			Command:     "jfcm history --version 2.74.0",
 			Description: "Filter by specific version",
 		},
 		{
-			Command:     "jfvm history --show-output",
+			Command:     "jfcm history --show-output",
 			Description: "Show captured command outputs",
 		},
 		{
-			Command:     "jfvm history --format json",
+			Command:     "jfcm history --format json",
 			Description: "Export as JSON",
 		},
 		{
-			Command:     "jfvm history --clear",
+			Command:     "jfcm history --clear",
 			Description: "Clear history (cannot be undone)",
 		},
 	},
 }
 
 var Version = CommandDescription{
-	Usage:       "Show jfvm version information",
+	Usage:       "Show jfcm version information",
 	Description: "Displays detailed version information including build date, git commit, and platform details.",
 	Examples: []Example{
 		{
-			Command:     "jfvm version",
+			Command:     "jfcm version",
 			Description: "Show version information",
 		},
 	},

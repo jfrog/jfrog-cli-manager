@@ -97,7 +97,7 @@ type BenchmarkConfig struct {
 
 func parseArguments(args []string) (versions []string, jfCommand []string, err error) {
 	if len(args) < 2 {
-		return nil, nil, cli.Exit("Usage: jfvm benchmark [flags] <version1,version2,...> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("Usage: jfcm benchmark [flags] <version1,version2,...> -- <jf-command> [args...]", 1)
 	}
 
 	// Find the separator "--"
@@ -110,17 +110,17 @@ func parseArguments(args []string) (versions []string, jfCommand []string, err e
 	}
 
 	if separatorIndex == -1 {
-		return nil, nil, cli.Exit("Missing '--' separator. Usage: jfvm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("Missing '--' separator. Usage: jfcm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
 	}
 
 	if separatorIndex == 0 {
-		return nil, nil, cli.Exit("No versions specified. Usage: jfvm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
+		return nil, nil, cli.Exit("No versions specified. Usage: jfcm benchmark [flags] <versions> -- <jf-command> [args...]", 1)
 	}
 
 	// Check for flags placed after the versions but before "--"
 	for i := 1; i < separatorIndex; i++ {
 		if strings.HasPrefix(args[i], "--") {
-			return nil, nil, cli.Exit(fmt.Sprintf("❌ Flag '%s' detected after versions. Please place all flags before versions.\nCorrect usage: jfvm benchmark --iterations 3 %s -- %s",
+			return nil, nil, cli.Exit(fmt.Sprintf("❌ Flag '%s' detected after versions. Please place all flags before versions.\nCorrect usage: jfcm benchmark --iterations 3 %s -- %s",
 				args[i], args[0], strings.Join(args[separatorIndex+1:], " ")), 1)
 		}
 	}

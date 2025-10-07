@@ -13,15 +13,15 @@ import (
 
 // TestSuite holds the test environment
 type TestSuite struct {
-	JfvmPath    string
+	jfcmPath    string
 	TestDir     string
 	OriginalPWD string
 }
 
-// findJfvmBinary searches upwards from the current directory for the jfvm binary
-func findJfvmBinary() (string, error) {
-	// Check JFVM_PATH env var first
-	if envPath := os.Getenv("JFVM_PATH"); envPath != "" {
+// findjfcmBinary searches upwards from the current directory for the jfcm binary
+func findjfcmBinary() (string, error) {
+	// Check jfcm_PATH env var first
+	if envPath := os.Getenv("jfcm_PATH"); envPath != "" {
 		if _, err := os.Stat(envPath); err == nil {
 			return envPath, nil
 		}
@@ -32,7 +32,7 @@ func findJfvmBinary() (string, error) {
 		return "", err
 	}
 	for {
-		candidate := filepath.Join(dir, "jfvm")
+		candidate := filepath.Join(dir, "jfcm")
 		if _, err := os.Stat(candidate); err == nil {
 			return candidate, nil
 		}
@@ -47,34 +47,34 @@ func findJfvmBinary() (string, error) {
 
 // SetupTestSuite initializes the test environment
 func SetupTestSuite(t *testing.T) *TestSuite {
-	// Find the jfvm binary robustly
-	jfvmSrc, err := findJfvmBinary()
+	// Find the jfcm binary robustly
+	jfcmSrc, err := findjfcmBinary()
 	if err != nil {
-		t.Fatalf("jfvm binary not found in any parent directory or JFVM_PATH. Please build it before running tests.")
+		t.Fatalf("jfcm binary not found in any parent directory or jfcm_PATH. Please build it before running tests.")
 	}
 
 	// Create test directory
-	testDir, err := os.MkdirTemp("", "jfvm-e2e-*")
+	testDir, err := os.MkdirTemp("", "jfcm-e2e-*")
 	if err != nil {
 		t.Fatalf("Failed to create test directory: %v", err)
 	}
 
-	// Copy jfvm binary into testDir
-	jfvmDst := filepath.Join(testDir, "jfvm")
-	srcFile, err := os.Open(jfvmSrc)
+	// Copy jfcm binary into testDir
+	jfcmDst := filepath.Join(testDir, "jfcm")
+	srcFile, err := os.Open(jfcmSrc)
 	if err != nil {
-		t.Fatalf("Failed to open jfvm binary: %v", err)
+		t.Fatalf("Failed to open jfcm binary: %v", err)
 	}
 	defer srcFile.Close()
-	dstFile, err := os.Create(jfvmDst)
+	dstFile, err := os.Create(jfcmDst)
 	if err != nil {
-		t.Fatalf("Failed to create jfvm binary in test dir: %v", err)
+		t.Fatalf("Failed to create jfcm binary in test dir: %v", err)
 	}
 	defer dstFile.Close()
 	if _, err := io.Copy(dstFile, srcFile); err != nil {
-		t.Fatalf("Failed to copy jfvm binary: %v", err)
+		t.Fatalf("Failed to copy jfcm binary: %v", err)
 	}
-	os.Chmod(jfvmDst, 0755) // Ensure it's executable
+	os.Chmod(jfcmDst, 0755) // Ensure it's executable
 
 	// Store original working directory
 	originalPWD, err := os.Getwd()
@@ -88,7 +88,7 @@ func SetupTestSuite(t *testing.T) *TestSuite {
 	}
 
 	return &TestSuite{
-		JfvmPath:    "./jfvm",
+		jfcmPath:    "./jfcm",
 		TestDir:     testDir,
 		OriginalPWD: originalPWD,
 	}
@@ -107,19 +107,19 @@ func (ts *TestSuite) CleanupTestSuite(t *testing.T) {
 	}
 }
 
-// RunCommand executes a jfvm command and returns the output
+// RunCommand executes a jfcm command and returns the output
 func (ts *TestSuite) RunCommand(t *testing.T, args ...string) (string, error) {
-	cmd := exec.Command(ts.JfvmPath, args...)
+	cmd := exec.Command(ts.jfcmPath, args...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
 
-// RunCommandWithTimeout executes a jfvm command with timeout
+// RunCommandWithTimeout executes a jfcm command with timeout
 func (ts *TestSuite) RunCommandWithTimeout(t *testing.T, timeout time.Duration, args ...string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, ts.JfvmPath, args...)
+	cmd := exec.CommandContext(ctx, ts.jfcmPath, args...)
 	output, err := cmd.CombinedOutput()
 	return string(output), err
 }
@@ -510,7 +510,7 @@ func TestPlatformSpecific(t *testing.T) {
 		ts.AssertSuccess(t, output, err)
 
 		// Should work on all platforms
-		ts.AssertContains(t, output, "jfvm")
+		ts.AssertContains(t, output, "jfcm")
 	})
 }
 
@@ -523,7 +523,7 @@ func TestSecurity(t *testing.T) {
 		ts.RunCommand(t, "install", "2.74.0")
 
 		// Check that binary has correct permissions
-		binaryPath := filepath.Join(os.Getenv("HOME"), ".jfvm", "versions", "2.74.0", "jf")
+		binaryPath := filepath.Join(os.Getenv("HOME"), ".jfcm", "versions", "2.74.0", "jf")
 		if info, err := os.Stat(binaryPath); err == nil {
 			mode := info.Mode()
 			if mode&0111 == 0 {
@@ -551,14 +551,14 @@ func TestShimAndPATH(t *testing.T) {
 	})
 
 	t.Run("Shim File Exists", func(t *testing.T) {
-		shimPath := filepath.Join(os.Getenv("HOME"), ".jfvm", "shim", "jf")
+		shimPath := filepath.Join(os.Getenv("HOME"), ".jfcm", "shim", "jf")
 		if _, err := os.Stat(shimPath); os.IsNotExist(err) {
 			t.Errorf("Shim file should exist at %s", shimPath)
 		}
 	})
 
 	t.Run("Shim is Executable", func(t *testing.T) {
-		shimPath := filepath.Join(os.Getenv("HOME"), ".jfvm", "shim", "jf")
+		shimPath := filepath.Join(os.Getenv("HOME"), ".jfcm", "shim", "jf")
 		if info, err := os.Stat(shimPath); err == nil {
 			mode := info.Mode()
 			if mode&0111 == 0 {
@@ -577,20 +577,20 @@ func TestShimAndPATH(t *testing.T) {
 	t.Run("Health Check", func(t *testing.T) {
 		output, err := ts.RunCommand(t, "health-check")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm Health Check")
+		ts.AssertContains(t, output, "jfcm Health Check")
 		ts.AssertContains(t, output, "Overall Status")
 	})
 
 	t.Run("Health Check with Fix", func(t *testing.T) {
 		output, err := ts.RunCommand(t, "health-check", "--fix")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm Health Check")
+		ts.AssertContains(t, output, "jfcm Health Check")
 	})
 
 	t.Run("Health Check Verbose", func(t *testing.T) {
 		output, err := ts.RunCommand(t, "health-check", "--verbose")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm Health Check")
+		ts.AssertContains(t, output, "jfcm Health Check")
 		ts.AssertContains(t, output, "Details:")
 	})
 }
@@ -781,7 +781,7 @@ func TestRTCompareFunctionality(t *testing.T) {
 		// Test that help shows proper examples
 		output, err := ts.RunCommand(t, "compare", "rt", "--help")
 		ts.AssertSuccess(t, output, err)
-		ts.AssertContains(t, output, "jfvm compare rt server1 server2 -- rt ping")
+		ts.AssertContains(t, output, "jfcm compare rt server1 server2 -- rt ping")
 		ts.AssertContains(t, output, "Compare rt ping command across two servers")
 	})
 }

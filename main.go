@@ -17,7 +17,7 @@ var (
 
 func main() {
 	app := &cli.App{
-		Name:  "jfvm",
+		Name:  "jfcm",
 		Usage: "Manage multiple versions of JFrog CLI",
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
@@ -28,15 +28,15 @@ func main() {
 		},
 		Before: func(c *cli.Context) error {
 			if c.Bool("version") {
-				fmt.Printf("jfvm version %s\n", Version)
+				fmt.Printf("jfcm version %s\n", Version)
 				fmt.Printf("  Build Date: %s\n", BuildDate)
 				fmt.Printf("  Git Commit: %s\n", GitCommit)
 				os.Exit(0)
 			}
 
-			// Initialize jfvm directories
-			if err := utils.InitializeJfvmDirectories(); err != nil {
-				return fmt.Errorf("failed to initialize jfvm directories: %w", err)
+			// Initialize jfcm directories
+			if err := utils.InitializejfcmDirectories(); err != nil {
+				return fmt.Errorf("failed to initialize jfcm directories: %w", err)
 			}
 
 			return nil
@@ -61,7 +61,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		fmt.Fprintf(os.Stderr, "Error running jfvm CLI: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Error running jfcm CLI: %v\n", err)
 		os.Exit(1)
 	}
 }

@@ -209,7 +209,7 @@ func ValidateVersionAgainstConstraint(version, projectRequiredVersion string) er
 }
 
 func GetInstalledVersions() ([]string, error) {
-	jfVersions, err := os.ReadDir(JfvmVersions)
+	jfVersions, err := os.ReadDir(jfcmVersions)
 	if err != nil {
 		return nil, err
 	}
@@ -217,7 +217,7 @@ func GetInstalledVersions() ([]string, error) {
 	var versions []string
 	for _, entry := range jfVersions {
 		if entry.IsDir() {
-			binPath := filepath.Join(JfvmVersions, entry.Name(), BinaryName)
+			binPath := filepath.Join(jfcmVersions, entry.Name(), BinaryName)
 			if _, err := os.Stat(binPath); err == nil {
 				versions = append(versions, entry.Name())
 			}

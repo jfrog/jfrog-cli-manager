@@ -30,7 +30,7 @@ print_header() {
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$(dirname "$SCRIPT_DIR")")"
 
-print_header "Starting jfvm E2E Test Suite"
+print_header "Starting jfcm E2E Test Suite"
 print_status "Project root: $PROJECT_ROOT"
 print_status "Current directory: $(pwd)"
 print_status "Platform: $(uname -s)"
@@ -39,34 +39,34 @@ print_status "Architecture: $(uname -m)"
 # Change to project root
 cd "$PROJECT_ROOT"
 
-# Verify JFVM_PATH is set
-if [ -z "$JFVM_PATH" ]; then
-    print_error "JFVM_PATH environment variable is not set"
+# Verify jfcm_PATH is set
+if [ -z "$jfcm_PATH" ]; then
+    print_error "jfcm_PATH environment variable is not set"
     exit 1
 fi
 
-print_status "JFVM_PATH: $JFVM_PATH"
+print_status "jfcm_PATH: $jfcm_PATH"
 
-# Build jfvm if it doesn't exist
-if [ ! -f "$JFVM_PATH" ]; then
-    print_status "Building jfvm..."
-    if ! go build -o "$JFVM_PATH" .; then
-        print_error "Failed to build jfvm"
+# Build jfcm if it doesn't exist
+if [ ! -f "$jfcm_PATH" ]; then
+    print_status "Building jfcm..."
+    if ! go build -o "$jfcm_PATH" .; then
+        print_error "Failed to build jfcm"
         exit 1
     fi
 fi
 
 # Make sure the binary is executable
-chmod +x "$JFVM_PATH"
+chmod +x "$jfcm_PATH"
 
 # Verify the binary works
-print_status "Testing jfvm binary..."
-if ! "$JFVM_PATH" --help > /dev/null 2>&1; then
-    print_error "jfvm binary is not working correctly"
+print_status "Testing jfcm binary..."
+if ! "$jfcm_PATH" --help > /dev/null 2>&1; then
+    print_error "jfcm binary is not working correctly"
     exit 1
 fi
 
-print_status "jfvm binary is ready for testing"
+print_status "jfcm binary is ready for testing"
 
 # Set test timeout
 TEST_TIMEOUT="15m"
