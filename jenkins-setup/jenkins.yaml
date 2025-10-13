@@ -1,0 +1,111 @@
+jenkins:
+  systemMessage: "Jenkins configured for JFVM Local Development"
+  numExecutors: 2
+  mode: NORMAL
+  scmCheckoutRetryCount: 3
+  
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "admin"
+          password: "password"
+          name: "Administrator"
+          email: "admin@localhost"
+
+  authorizationStrategy:
+    globalMatrix:
+      permissions:
+        - "Overall/Administer:admin"
+        - "Overall/Read:authenticated"
+
+  globalLibraries:
+    libraries:
+      - name: "jfvm-shared-library"
+        defaultVersion: "main"
+        retriever:
+          modernSCM:
+            scm:
+              filesystem:
+                path: "/var/jenkins_home/shared-library"
+                clearWorkspace: false
+
+  nodes:
+    - permanent:
+        name: "built-in"
+        numExecutors: 2
+
+tool:
+  go:
+    installations:
+      - name: "Go 1.21"
+        properties:
+          - installSource:
+              installers:
+                - golangInstaller:
+                    id: "1.21.5"
+
+  git:
+    installations:
+      - name: "Default"
+        home: "/usr/bin/git"
+
+  dockerTool:
+    installations:
+      - name: "Docker"
+        properties:
+          - installSource:
+              installers:
+                - fromDocker:
+                    version: "latest"
+
+unclassified:
+  location:
+    url: "http://localhost:8080/"
+    adminAddress: "admin@localhost"
+
+  jfrog:
+    artifactoryServers:
+      - serverId: "local-artifactory"
+        artifactoryUrl: "http://host.docker.internal:8082/artifactory"
+        username: "admin"
+        password: "password"
+        timeout: 300
+        bypassProxy: true
+        connectionRetry: 3
+
+  globalConfigFiles:
+    configs:
+      - managedScript:
+          id: "artifactory-health-check"
+          name: "Artifactory Health Check"
+          comment: "Script to verify Artifactory connectivity"
+          content: |
+            #!/bin/bash
+            set -e
+            echo "Checking Artifactory connectivity..."
+            
+            # Primary URL check
+            if curl -f -s "${ARTIFACTORY_URL}/api/system/ping" > /dev/null; then
+                echo "✅ Artifactory accessible at ${ARTIFACTORY_URL}"
+                export ARTIFACTORY_ACTIVE_URL="${ARTIFACTORY_URL}"
+            elif curl -f -s "${ARTIFACTORY_FALLBACK_URL}/api/system/ping" > /dev/null; then
+                echo "✅ Artifactory accessible at ${ARTIFACTORY_FALLBACK_URL}"
+                export ARTIFACTORY_ACTIVE_URL="${ARTIFACTORY_FALLBACK_URL}"
+            else
+                echo "❌ Artifactory not accessible at either URL"
+                exit 1
+            fi
+
+  timestamper:
+    allPipelines: true
+    elapsedTimeFormat: "'<b>'HH:mm:ss.S'</b> '"
+    systemTimeFormat: "'<b>'HH:mm:ss'</b> '"
+
+  buildDiscarders:
+    configuredBuildDiscarders:
+      - "jobBuildDiscarder":
+          discarder:
+            logRotator:
+              daysToKeepStr: "30"
+              numToKeepStr: "100"
