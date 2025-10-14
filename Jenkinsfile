@@ -9,8 +9,8 @@ properties([
     parameters([
         booleanParam(
             name: 'LOCAL_TESTING',
-            defaultValue: false,
-            description: 'Force local testing mode'
+            defaultValue: true,
+            description: 'Force local testing mode (set to false for production)'
         ),
         string(
             name: 'ARTIFACTORY_URL_OVERRIDE',
@@ -36,9 +36,14 @@ properties([
 ])
 
 // Environment detection for local vs production testing
-def isLocalTesting = env.JENKINS_URL?.contains('localhost') || 
-                     env.JENKINS_URL?.contains('127.0.0.1') ||
-                     params.LOCAL_TESTING == true
+// Check multiple indicators for local environment
+def jenkinsUrl = env.JENKINS_URL ?: env.BUILD_URL ?: ''
+def isLocalTesting = params.LOCAL_TESTING == true ||
+                     jenkinsUrl.contains('localhost') || 
+                     jenkinsUrl.contains('127.0.0.1') ||
+                     jenkinsUrl.contains('host.docker.internal') ||
+                     env.NODE_NAME == 'master' ||
+                     env.NODE_NAME == 'built-in'
 
 // Artifactory Configuration (easily configurable with parameter overrides)
 def artifactoryConfig = [
