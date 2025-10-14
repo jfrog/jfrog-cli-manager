@@ -240,6 +240,21 @@ def setupBuildEnvironment(jfcmRepoDir) {
                 else
                     echo "✅ Go 1.23 already available"
                 fi
+                
+                # Update PATH for subsequent commands
+                export PATH="\$HOME/go-1.23/go/bin:\$PATH"
+                export GOROOT="\$HOME/go-1.23/go"
+                
+                # Verify build directory structure
+                mkdir -p build/{sign,apple_release/scripts,npm/v1,chocolatey/v1,deb_rpm/v1/build-scripts,docker,getcli,installcli,setupcli}
+                mkdir -p dist/{binaries,packages,signed}
+                
+                # Download dependencies with correct Go version
+                echo "📦 Downloading Go dependencies..."
+                go mod download
+                go mod verify
+                
+                echo "✅ Local build environment ready"
             """
         } else {
             // Production environment - use system Go or install as needed
@@ -251,18 +266,16 @@ def setupBuildEnvironment(jfcmRepoDir) {
                     export PATH=\$PATH:/usr/local/go/bin
                 fi
                 go version
+                
+                # Verify build directory structure
+                mkdir -p build/{sign,apple_release/scripts,npm/v1,chocolatey/v1,deb_rpm/v1/build-scripts,docker,getcli,installcli,setupcli}
+                mkdir -p dist/{binaries,packages,signed}
+                
+                # Download dependencies
+                go mod download
+                go mod verify
             """
         }
-        
-        // Verify build directory structure (identical for both environments)
-        sh """
-            mkdir -p build/{sign,apple_release/scripts,npm/v1,chocolatey/v1,deb_rpm/v1/build-scripts,docker,getcli,installcli,setupcli}
-            mkdir -p dist/{binaries,packages,signed}
-        """
-        
-        // Download dependencies (identical for both environments)
-        sh "go mod download"
-        sh "go mod verify"
     }
 }
 
@@ -298,6 +311,12 @@ def build(goos, goarch, pkg, fileName, jfcmRepoDir, version) {
         def ldflags = "-w -extldflags \"-static\" -X main.Version=${version} -X main.BuildDate=\$(date -u '+%Y-%m-%d_%H:%M:%S') -X main.GitCommit=\$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
         
         sh """
+            # Ensure we're using the correct Go version for local builds
+            if [ -d "\$HOME/go-1.23" ]; then
+                export PATH="\$HOME/go-1.23/go/bin:\$PATH"
+                export GOROOT="\$HOME/go-1.23/go"
+            fi
+            
             echo "Building ${fileName} for ${goos}/${goarch}..."
             go build -o "dist/binaries/${pkg}/${fileName}" -ldflags '${ldflags}' main.go
             chmod +x "dist/binaries/${pkg}/${fileName}"
