@@ -98,8 +98,7 @@ def executePipeline() {
         [pkg: 'jfcm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
         [pkg: 'jfcm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
         [pkg: 'jfcm-mac-arm64', goos: 'darwin', goarch: 'arm64', fileExtension: ''],
-        [pkg: 'jfcm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: ''],
-        [pkg: 'jfcm-linux-ppc64', goos: 'linux', goarch: 'ppc64', fileExtension: '']
+        [pkg: 'jfcm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: '']
     ]
     
     def jfcmExecutableName = 'jfcm'
