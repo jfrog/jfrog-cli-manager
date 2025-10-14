@@ -70,15 +70,23 @@ def artifactoryConfig = [
 // Select configuration based on environment
 def currentConfig = isLocalTesting ? artifactoryConfig.local : artifactoryConfig.production
 
-// Dynamic node selection based on environment
-def nodeLabel = isLocalTesting ? 'master' : 'docker-ubuntu20-xlarge'
-
 echo "🎯 Environment: ${isLocalTesting ? 'LOCAL TESTING' : 'PRODUCTION'}"
-echo "Using node: ${nodeLabel}"
 echo "Artifactory URL: ${currentConfig.url}"
 echo "Binaries repo: ${currentConfig.binariesRepo}"
 
-node(nodeLabel) {
+// For local testing, use node{} which is equivalent to "agent any"
+// For production, use specific label
+if (isLocalTesting) {
+    node {
+        executePipeline()
+    }
+} else {
+    node('docker-ubuntu20-xlarge') {
+        executePipeline()
+    }
+}
+
+def executePipeline() {
     cleanWs()
     
     // Global variables
