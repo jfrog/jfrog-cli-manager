@@ -201,7 +201,14 @@ def executePipeline() {
 def setupBuildEnvironment(jfcmRepoDir) {
     dir(jfcmRepoDir) {
         // Environment-aware Go installation
-        def isLocal = env.JENKINS_URL?.contains('localhost')
+        // Use the same isLocalTesting check as the main pipeline
+        def jenkinsUrl = env.JENKINS_URL ?: env.BUILD_URL ?: ''
+        def isLocal = params.LOCAL_TESTING == true ||
+                      jenkinsUrl.contains('localhost') || 
+                      jenkinsUrl.contains('127.0.0.1') ||
+                      jenkinsUrl.contains('host.docker.internal') ||
+                      env.NODE_NAME == 'master' ||
+                      env.NODE_NAME == 'built-in'
         
         if (isLocal) {
             // Local environment - install Go 1.23 in user space (from working Jenkinsfile.local)
