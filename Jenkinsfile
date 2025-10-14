@@ -24,8 +24,8 @@ properties([
         ),
         booleanParam(
             name: 'SKIP_PACKAGING',
-            defaultValue: false,
-            description: 'Skip package creation (NPM, Chocolatey, etc.)'
+            defaultValue: true,
+            description: 'Skip package creation (NPM, Chocolatey, etc.) - requires Docker'
         ),
         booleanParam(
             name: 'SKIP_TESTS',
@@ -178,13 +178,21 @@ def executePipeline() {
             }
             
             stage('Create Packages') {
-                echo "Creating distribution packages..."
-                createPackages(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier)
+                if (!params.SKIP_PACKAGING) {
+                    echo "Creating distribution packages..."
+                    createPackages(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier)
+                } else {
+                    echo "⏭️  Skipping package creation"
+                }
             }
             
             stage('Test Packages') {
-                echo "Testing created packages..."
-                testPackages(architectures, jfcmExecutableName, jfcmRepoDir)
+                if (!params.SKIP_PACKAGING) {
+                    echo "Testing created packages..."
+                    testPackages(architectures, jfcmExecutableName, jfcmRepoDir)
+                } else {
+                    echo "⏭️  Skipping package testing"
+                }
             }
             
             stage('Upload to Artifactory') {
