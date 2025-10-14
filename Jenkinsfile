@@ -1144,9 +1144,6 @@ RUN apk add --no-cache ca-certificates git curl bash
 RUN addgroup -g 1000 jfcm && \\
     adduser -D -s /bin/bash -u 1000 -G jfcm jfcm
 
-# Install JFrog CLI
-RUN curl -fL https://install-cli.jfrog.io | sh
-
 # Copy JFVM binary
 COPY jfcm /usr/local/bin/jfcm
 RUN chmod +x /usr/local/bin/jfcm
@@ -1155,10 +1152,8 @@ RUN chmod +x /usr/local/bin/jfcm
 USER jfcm
 WORKDIR /home/jfcm
 
-# Initialize JFVM and install latest JF CLI
-RUN jfcm --version && \\
-    jfcm install latest && \\
-    jfcm use latest
+# Verify JFCM installation
+RUN jfcm --version
 
 ENTRYPOINT ["jfcm"]
 CMD ["--help"]
