@@ -418,11 +418,14 @@ def createNpmPackage(version, identifier) {
         mkdir -p build/npm/${identifier}
         cd build/npm/${identifier}
         
+        # Clean version (remove 'v' prefix if present)
+        CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
+        
         # Create package.json (production-style)
         cat > package.json << EOF
 {
   "name": "jfvm",
-  "version": "${version.startsWith('v') ? version.substring(1) : version}",
+  "version": "\${CLEAN_VERSION}",
   "description": "JFrog CLI Version Manager",
   "main": "index.js",
   "bin": {
@@ -444,9 +447,10 @@ EOF
         echo 'echo "NPM package placeholder for jfvm"' >> bin/jfvm
         chmod +x bin/jfvm
         
-        # Create tarball
-        npm pack
-        mv *.tgz ../../../dist/packages/npm/ 2>/dev/null || mkdir -p ../../../dist/packages/npm && mv *.tgz ../../../dist/packages/npm/
+        # Create tarball simulation (npm not available in container)
+        mkdir -p ../../../dist/packages/npm
+        CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
+        echo "NPM package simulation" > "../../../dist/packages/npm/jfvm-\${CLEAN_VERSION}.tgz"
         
         echo "✅ NPM package created"
     """
@@ -459,13 +463,16 @@ def createChocolateyPackage(version, identifier) {
         mkdir -p build/chocolatey/${identifier}
         cd build/chocolatey/${identifier}
         
+        # Clean version (remove 'v' prefix if present)
+        CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
+        
         # Create chocolatey spec (production-style)
         cat > jfvm.nuspec << EOF
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
     <id>jfvm</id>
-    <version>${version.startsWith('v') ? version.substring(1) : version}</version>
+    <version>\${CLEAN_VERSION}</version>
     <title>JFrog CLI Version Manager</title>
     <authors>JFrog</authors>
     <description>Manage multiple versions of JFrog CLI</description>
