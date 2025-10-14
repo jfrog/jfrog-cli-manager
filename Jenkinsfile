@@ -495,10 +495,11 @@ def createNpmPackage(jfcmExecutableName, jfcmRepoDir, version, identifier) {
         echo "Creating NPM package..."
         
         // Create package.json
+        def cleanVersion = version.startsWith('v') ? version.substring(1) : version
         writeFile file: 'package.json', text: """
 {
     "name": "@jfrog/jfcm",
-    "version": "${version.replaceFirst('^v', '')}",
+    "version": "${cleanVersion}",
     "description": "JFrog CLI Version Manager - Manage multiple versions of JFrog CLI",
     "main": "init.js",
     "bin": {
@@ -883,7 +884,7 @@ def createDebianPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, 
                 # Create control file
                 cat > build/deb/${pkg}/DEBIAN/control << EOF
 Package: jfcm
-Version: ${version.replaceFirst('^v', '')}
+Version: \$(echo "${version}" | sed 's/^v//')
 Section: utils
 Priority: optional
 Architecture: ${debianArch}
@@ -933,7 +934,8 @@ EOF
 
                 # Build package
                 dpkg-deb --build build/deb/${pkg}
-                mv build/deb/${pkg}.deb dist/packages/jfcm_${version.replaceFirst('^v', '')}_${debianArch}.deb
+                CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
+                mv build/deb/${pkg}.deb dist/packages/jfcm_\${CLEAN_VERSION}_${debianArch}.deb
             "
         """
     }
@@ -961,9 +963,10 @@ def createRpmPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, ide
                 rpmdev-setuptree
                 
                 # Create spec file
+                CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
                 cat > ~/rpmbuild/SPECS/jfcm.spec << EOF
 Name:           jfcm
-Version:        \$(echo "${version}" | sed 's/^v//')
+Version:        \${CLEAN_VERSION}
 Release:        1%{?dist}
 Summary:        JFrog CLI Version Manager
 License:        MIT
@@ -1003,7 +1006,7 @@ echo \"  jfcm --help            # Show all commands\"
 echo \"\"
 
 %changelog
-* $(date +'%a %b %d %Y') JFrog Release Team <support@jfrog.com> - ${version.replaceFirst('^v', '')}-1
+* \$(date +'%a %b %d %Y') JFrog Release Team <support@jfrog.com> - \$(echo "${version}" | sed 's/^v//')-1
 - Release ${version}
 EOF
 
@@ -1304,7 +1307,8 @@ def publishChocolateyPackage(version, identifier) {
                 choco pack
                 
                 # Push to Chocolatey
-                choco push jfcm.${version.replaceFirst('^v', '')}.nupkg --api-key \${CHOCO_API_KEY}
+                CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
+                choco push jfcm.\${CLEAN_VERSION}.nupkg --api-key \${CHOCO_API_KEY}
             """
         }
     }
