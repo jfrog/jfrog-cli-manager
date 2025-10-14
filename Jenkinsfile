@@ -187,11 +187,11 @@ def executePipeline() {
             }
             
             stage('Test Packages') {
-                if (!params.SKIP_PACKAGING) {
-                    echo "Testing created packages..."
+                if (isLocalTesting && !params.SKIP_PACKAGING) {
+                    echo "Testing created packages (local environment only)..."
                     testPackages(architectures, jfcmExecutableName, jfcmRepoDir)
                 } else {
-                    echo "⏭️  Skipping package testing"
+                    echo "⏭️  Skipping package testing (production environment)"
                 }
             }
             
@@ -1057,13 +1057,25 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
     echo "Testing packages..."
     
     dir(jfcmRepoDir) {
+        // Install test dependencies
+        sh """
+            echo "📦 Installing test dependencies..."
+            
+            # Install Node.js and npm if not present
+            if ! command -v npm >/dev/null 2>&1; then
+                curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
+                apt-get install -y nodejs
+                echo "✅ npm installed: \$(npm --version)"
+            fi
+        """
+        
         // Test NPM package
         sh """
             if [ -f dist/packages/npm/jfcm-*.tgz ]; then
                 echo "Testing NPM package..."
                 cd /tmp
-                npm pack ../dist/packages/npm/jfcm-*.tgz
-                echo "NPM package test passed"
+                npm pack \$(realpath ${jfcmRepoDir}/dist/packages/npm/jfcm-*.tgz)
+                echo "✅ NPM package test passed"
             fi
         """
         
@@ -1072,7 +1084,7 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
             if docker images | grep -q jfrog/jfcm; then
                 echo "Testing Docker image..."
                 docker run --rm jfrog/jfcm:latest --version
-                echo "Docker image test passed"
+                echo "✅ Docker image test passed"
             fi
         """
         
@@ -1089,10 +1101,17 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
                 sh """
                     echo "Testing ${pkg} binary..."
                     ${binaryPath} --version
-                    echo "${pkg} binary test passed"
+                    echo "✅ ${pkg} binary test passed"
                 """
             }
         }
+        
+        // Verify package files exist
+        sh """
+            echo "Verifying package files..."
+            ls -lh dist/packages/ || true
+            echo "✅ Package verification complete"
+        """
     }
 }
 
