@@ -1057,15 +1057,17 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
     echo "Testing packages..."
     
     dir(jfcmRepoDir) {
-        // Install test dependencies
+        // Install test dependencies in Docker container
         sh """
             echo "📦 Installing test dependencies..."
             
-            # Install Node.js and npm if not present
+            # Install Node.js and npm if not present (using Docker for clean environment)
             if ! command -v npm >/dev/null 2>&1; then
-                curl -fsSL https://deb.nodesource.com/setup_lts.x | bash -
-                apt-get install -y nodejs
-                echo "✅ npm installed: \$(npm --version)"
+                docker run --rm -v \$(pwd):/workspace node:lts bash -c "
+                    echo '✅ npm available: \$(npm --version)'
+                    echo 'Node.js: \$(node --version)'
+                "
+                echo "✅ Will use Docker container for npm tests"
             fi
         """
         
@@ -1073,8 +1075,10 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
         sh """
             if [ -f dist/packages/npm/jfcm-*.tgz ]; then
                 echo "Testing NPM package..."
-                cd /tmp
-                npm pack \$(realpath ${jfcmRepoDir}/dist/packages/npm/jfcm-*.tgz)
+                docker run --rm -v \$(pwd):/workspace -w /workspace node:lts bash -c "
+                    cd /tmp
+                    npm pack /workspace/dist/packages/npm/jfcm-*.tgz
+                "
                 echo "✅ NPM package test passed"
             fi
         """
