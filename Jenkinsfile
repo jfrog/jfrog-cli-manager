@@ -1203,6 +1203,41 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                             -T "\${binary}.sha256" || echo "Checksum upload failed"
                     fi
                 done
+                
+                echo "📤 Uploading packages to local Artifactory..."
+                
+                # Upload NPM package
+                if [ -f dist/packages/npm/jfcm-*.tgz ]; then
+                    NPM_FILE=\$(ls dist/packages/npm/jfcm-*.tgz)
+                    curl -u admin:password \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-npm/${identifier}/\$(basename \$NPM_FILE)" \\
+                        -T "\$NPM_FILE"
+                fi
+                
+                # Upload Debian packages
+                find dist/packages -name "*.deb" | while read DEB_FILE; do
+                    curl -u admin:password \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-debs/\$(basename \$DEB_FILE)" \\
+                        -T "\$DEB_FILE"
+                done
+                
+                # Upload RPM packages  
+                find dist/packages -name "*.rpm" | while read RPM_FILE; do
+                    curl -u admin:password \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-rpms/\$(basename \$RPM_FILE)" \\
+                        -T "\$RPM_FILE"
+                done
+                
+                # Upload Docker images
+                find dist/packages/docker -name "*.tar.gz" | while read DOCKER_FILE; do
+                    curl -u admin:password \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-docker/${version}/\$(basename \$DOCKER_FILE)" \\
+                        -T "\$DOCKER_FILE"
+                done
             """
         } else {
             // Production upload with credential store
@@ -1228,37 +1263,36 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                         """
                     }
                 }
-            }
-        }
-            
-            // Upload packages
-            sh """
-                # Upload NPM package
-                if [ -f dist/packages/npm/jfcm-*.tgz ]; then
-                    curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                
+                // Upload packages
+                sh """
+                    # Upload NPM package
+                    if [ -f dist/packages/npm/jfcm-*.tgz ]; then
+                        curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                            -X PUT \\
+                            "${artifactoryUrl}/jfcm-npm/${identifier}/" \\
+                            -T dist/packages/npm/jfcm-*.tgz
+                    fi
+                    
+                    # Upload Debian packages
+                    find dist/packages -name "*.deb" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                         -X PUT \\
-                        "https://releases.jfrog.io/artifactory/jfcm-npm/${identifier}/" \\
-                        -T dist/packages/npm/jfcm-*.tgz
-                fi
-                
-                # Upload Debian packages
-                find dist/packages -name "*.deb" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
-                    -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfcm-debs/" \\
-                    -T {} \\;
-                
-                # Upload RPM packages  
-                find dist/packages -name "*.rpm" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
-                    -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfcm-rpms/" \\
-                    -T {} \\;
-                
-                # Upload Docker images
-                find dist/packages/docker -name "*.tar.gz" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
-                    -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfcm-docker/${version}/" \\
-                    -T {} \\;
-            """
+                        "${artifactoryUrl}/jfcm-debs/" \\
+                        -T {} \\;
+                    
+                    # Upload RPM packages  
+                    find dist/packages -name "*.rpm" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-rpms/" \\
+                        -T {} \\;
+                    
+                    # Upload Docker images
+                    find dist/packages/docker -name "*.tar.gz" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                        -X PUT \\
+                        "${artifactoryUrl}/jfcm-docker/${version}/" \\
+                        -T {} \\;
+                """
+            }
         }
     }
 }
