@@ -91,9 +91,9 @@ def executePipeline() {
     
     // Global variables
     def architectures = [
-        [pkg: 'jfcm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe', chocoImage: 'jfrog-docker/linuturk/mono-choco'],
-        [pkg: 'jfcm-linux-386', goos: 'linux', goarch: '386', fileExtension: '', debianImage: 'jfrog-docker/i386/ubuntu:20.04', debianArch: 'i386'],
-        [pkg: 'jfcm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: '', debianImage: 'jfrog-docker/ubuntu:20.04', debianArch: 'x86_64', rpmImage: 'almalinux:8.10'],
+        [pkg: 'jfcm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe', chocoImage: 'linuturk/mono-choco'],
+        [pkg: 'jfcm-linux-386', goos: 'linux', goarch: '386', fileExtension: '', debianImage: 'i386/ubuntu:20.04', debianArch: 'i386'],
+        [pkg: 'jfcm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: '', debianImage: 'ubuntu:20.04', debianArch: 'x86_64', rpmImage: 'almalinux:8'],
         [pkg: 'jfcm-linux-arm64', goos: 'linux', goarch: 'arm64', fileExtension: ''],
         [pkg: 'jfcm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
         [pkg: 'jfcm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
