@@ -1,6 +1,6 @@
 module github.com/jfrog/jfrog-cli-vm
 
-go 1.21
+go 1.24
 
 require (
 	github.com/NimbleMarkets/ntcharts v0.3.1

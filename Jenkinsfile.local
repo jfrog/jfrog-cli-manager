@@ -95,15 +95,39 @@ pipeline {
                 sh '''
                     echo "🔧 Setting up production-style build environment..."
                     
-                    # Verify Go installation
-                    go version
+                    # Check current Go version
+                    echo "Current Go version: $(go version)"
+                    
+                    # Check required Go version from go.mod
+                    REQUIRED_GO=$(grep "^go " go.mod | awk '{print $2}')
+                    echo "Required Go version: $REQUIRED_GO"
+                    
+                    # Install Go 1.23 if needed (supports go.mod 1.24)
+                    if ! go version | grep -q "go1.23"; then
+                        echo "📥 Installing Go 1.23 for go.mod 1.24 compatibility..."
+                        
+                        # Download and install Go 1.23
+                        curl -L -o go1.23.tar.gz "https://go.dev/dl/go1.23.2.linux-amd64.tar.gz"
+                        sudo rm -rf /usr/local/go
+                        sudo tar -C /usr/local -xzf go1.23.tar.gz
+                        rm go1.23.tar.gz
+                        
+                        # Update PATH
+                        export PATH="/usr/local/go/bin:$PATH"
+                        
+                        echo "✅ Go 1.23 installed (supports go.mod 1.24)"
+                        echo "New Go version: $(go version)"
+                    else
+                        echo "✅ Go 1.23 already available"
+                    fi
                     
                     # Create production directory structure
                     mkdir -p build/{sign,apple_release/scripts,npm/v1,chocolatey/v1,deb_rpm/v1/build-scripts,docker,getcli,installcli,setupcli}
                     mkdir -p dist/{binaries,packages,signed}
                     mkdir -p test-results
                     
-                    # Download dependencies
+                    # Download dependencies with correct Go version
+                    echo "📦 Downloading Go dependencies..."
                     go mod download
                     go mod verify
                     
