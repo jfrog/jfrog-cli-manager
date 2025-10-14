@@ -105,7 +105,7 @@ def executePipeline() {
     
     def jfcmExecutableName = 'jfcm'
     def identifier = 'v1'
-    def jfcmRepoDir = pwd() + "/jfcm/"
+    def jfcmRepoDir = pwd()
     def buildName = 'jfcm-multi-platform'
     def buildNumber = env.BUILD_NUMBER
     def jfcmVersion
