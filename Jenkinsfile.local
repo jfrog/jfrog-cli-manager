@@ -8,18 +8,13 @@ pipeline {
     
     parameters {
         string(
-            name: 'GIT_BRANCH',
-            defaultValue: 'main',
-            description: 'Git branch to checkout and build'
-        )
-        string(
             name: 'RELEASE_VERSION',
-            defaultValue: '',
-            description: 'Release version (e.g., v1.0.0) - leave empty for dev build'
+            defaultValue: 'v0.0.11-test',
+            description: 'Release version to test (e.g., v1.0.0-test)'
         )
         booleanParam(
             name: 'PRODUCTION_MODE',
-            defaultValue: false,
+            defaultValue: true,
             description: 'Enable production mode (full packaging, signing simulation)'
         )
         booleanParam(
@@ -55,11 +50,12 @@ pipeline {
             steps {
                 script {
                     echo "🚀 Starting JFVM Production-Style Build Pipeline"
+                    echo "🎯 Hardcoded to checkout: multi-platform-builds branch"
                     
-                    // Checkout code with branch support
+                    // Checkout multi-platform-builds branch (hardcoded)
                     checkout([
                         $class: 'GitSCM',
-                        branches: [[name: "*/${params.GIT_BRANCH}"]],
+                        branches: [[name: "*/multi-platform-builds"]],
                         extensions: [
                             [$class: 'CleanBeforeCheckout'],
                             [$class: 'CloneOption', depth: 0, noTags: false]
@@ -67,12 +63,18 @@ pipeline {
                         userRemoteConfigs: [[url: scm.userRemoteConfigs[0].url]]
                     ])
                     
+                    // Show Git status after checkout
+                    sh '''
+                        echo "📋 Git checkout completed:"
+                        echo "  Branch: $(git branch --show-current 2>/dev/null || echo 'detached HEAD')"
+                        echo "  Commit: $(git rev-parse --short HEAD)"
+                        echo "  Message: $(git log -1 --pretty=format:'%s')"
+                        echo "  Tags: $(git describe --tags --always --dirty 2>/dev/null || echo 'no tags')"
+                    '''
+                    
                     // Determine version (production-style logic)
                     if (params.RELEASE_VERSION?.trim()) {
                         env.JFVM_VERSION = params.RELEASE_VERSION
-                        env.PUBLISH_TO_PROD = "true"
-                    } else if (env.BRANCH_NAME?.startsWith('v') || env.TAG_NAME?.startsWith('v')) {
-                        env.JFVM_VERSION = env.TAG_NAME ?: env.BRANCH_NAME
                         env.PUBLISH_TO_PROD = "true"
                     } else {
                         env.JFVM_VERSION = sh(
@@ -83,7 +85,7 @@ pipeline {
                     
                     echo "📋 Build Configuration:"
                     echo "  Version: ${env.JFVM_VERSION}"
-                    echo "  Branch: ${params.GIT_BRANCH}"
+                    echo "  Branch: multi-platform-builds (hardcoded)"
                     echo "  Production Mode: ${env.PUBLISH_TO_PROD}"
                     echo "  Skip Packaging: ${params.SKIP_PACKAGING}"
                     echo "  Skip Tests: ${params.SKIP_TESTS}"
@@ -176,7 +178,7 @@ pipeline {
         
         stage('Create Packages') {
             when {
-                not { params.SKIP_PACKAGING }
+                expression { !params.SKIP_PACKAGING }
             }
             parallel {
                 stage('NPM Package') {
@@ -220,7 +222,7 @@ pipeline {
         
         stage('Cross-Platform Testing') {
             when {
-                not { params.SKIP_TESTS }
+                expression { !params.SKIP_TESTS }
             }
             steps {
                 script {
@@ -241,7 +243,7 @@ pipeline {
             when {
                 allOf {
                     environment name: 'PUBLISH_TO_PROD', value: 'true'
-                    not { params.SKIP_PACKAGING }
+                    expression { !params.SKIP_PACKAGING }
                 }
             }
             parallel {
