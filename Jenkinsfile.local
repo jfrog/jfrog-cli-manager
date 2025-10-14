@@ -193,7 +193,7 @@ pipeline {
                     echo "Simulating code signing..."
                     
                     mkdir -p dist/signed
-                    find dist/binaries -name "jfvm*" ! -name "*.sha256" | while read binary; do
+                    find dist/binaries -type f -name "jfvm*" ! -name "*.sha256" | while read binary; do
                         PKG=$(echo $binary | cut -d'/' -f3)
                         FILENAME=$(basename $binary)
                         
