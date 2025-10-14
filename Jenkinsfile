@@ -963,7 +963,7 @@ def createRpmPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, ide
                 # Create spec file
                 cat > ~/rpmbuild/SPECS/jfcm.spec << EOF
 Name:           jfcm
-Version:        ${version.replaceFirst('^v', '')}
+Version:        \$(echo "${version}" | sed 's/^v//')
 Release:        1%{?dist}
 Summary:        JFrog CLI Version Manager
 License:        MIT
