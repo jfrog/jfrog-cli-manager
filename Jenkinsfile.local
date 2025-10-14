@@ -262,10 +262,17 @@ pipeline {
             }
             post {
                 always {
-                    publishTestResults(
-                        testResultsPattern: 'test-results/*.xml',
-                        allowEmptyResults: true
-                    )
+                    script {
+                        try {
+                            // Use junit step instead of publishTestResults
+                            junit(
+                                testResults: 'test-results/*.xml',
+                                allowEmptyResults: true
+                            )
+                        } catch (Exception e) {
+                            echo "Warning: Could not publish test results: ${e.getMessage()}"
+                        }
+                    }
                 }
             }
         }
