@@ -305,9 +305,6 @@ def build(goos, goarch, pkg, fileName, jfcmRepoDir, version) {
         env.GOARCH = goarch
         env.CGO_ENABLED = "0"
         
-        // Build with version information
-        def ldflags = "-w -extldflags \"-static\" -X main.Version=${version} -X main.BuildDate=\$(date -u '+%Y-%m-%d_%H:%M:%S') -X main.GitCommit=\$(git rev-parse --short HEAD 2>/dev/null || echo 'unknown')"
-        
         sh """
             # Ensure we're using the correct Go version for local builds
             if [ -d "\$HOME/go-1.23" ]; then
@@ -316,7 +313,7 @@ def build(goos, goarch, pkg, fileName, jfcmRepoDir, version) {
             fi
             
             echo "Building ${fileName} for ${goos}/${goarch}..."
-            go build -o "dist/binaries/${pkg}/${fileName}" -ldflags '${ldflags}' main.go
+            go build -o "dist/binaries/${pkg}/${fileName}" main.go
             chmod +x "dist/binaries/${pkg}/${fileName}"
             
             # Verify the binary
