@@ -1145,9 +1145,7 @@ RUN addgroup -g 1000 jfcm && \\
     adduser -D -s /bin/bash -u 1000 -G jfcm jfcm
 
 # Install JFrog CLI
-RUN curl -fL https://install-cli.jfrog.io | sh && \\
-    mv jf /usr/local/bin/jf && \\
-    chmod +x /usr/local/bin/jf
+RUN curl -fL https://install-cli.jfrog.io | sh
 
 # Copy JFVM binary
 COPY jfcm /usr/local/bin/jfcm
