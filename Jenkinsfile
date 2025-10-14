@@ -24,8 +24,8 @@ properties([
         ),
         booleanParam(
             name: 'SKIP_PACKAGING',
-            defaultValue: true,
-            description: 'Skip package creation (NPM, Chocolatey, etc.) - requires Docker'
+            defaultValue: false,
+            description: 'Skip package creation (NPM, Chocolatey, etc.)'
         ),
         booleanParam(
             name: 'SKIP_TESTS',
