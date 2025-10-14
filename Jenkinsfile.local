@@ -36,10 +36,13 @@ pipeline {
         ARTIFACTORY_PASSWORD = "password"
         
         // Build configuration
-        GO_VERSION = "1.21.5"
         CGO_ENABLED = "0"
         BUILD_NAME = "jfvm-multi-platform"
         IDENTIFIER = "v1"
+        
+        // Go configuration (will be updated during setup)
+        PATH = "${env.HOME}/go-1.23/go/bin:${env.PATH}"
+        GOROOT = "${env.HOME}/go-1.23/go"
         
         // Determine build type
         PUBLISH_TO_PROD = "${params.PRODUCTION_MODE}"
@@ -102,20 +105,24 @@ pipeline {
                     REQUIRED_GO=$(grep "^go " go.mod | awk '{print $2}')
                     echo "Required Go version: $REQUIRED_GO"
                     
-                    # Install Go 1.23 if needed (supports go.mod 1.24)
+                    # Install Go 1.23 in user space if needed (supports go.mod 1.24)
                     if ! go version | grep -q "go1.23"; then
                         echo "📥 Installing Go 1.23 for go.mod 1.24 compatibility..."
                         
-                        # Download and install Go 1.23
+                        # Download and install Go 1.23 in user space
                         curl -L -o go1.23.tar.gz "https://go.dev/dl/go1.23.2.linux-amd64.tar.gz"
-                        sudo rm -rf /usr/local/go
-                        sudo tar -C /usr/local -xzf go1.23.tar.gz
+                        
+                        # Install in user home directory
+                        rm -rf ~/go-1.23
+                        mkdir -p ~/go-1.23
+                        tar -C ~/go-1.23 -xzf go1.23.tar.gz
                         rm go1.23.tar.gz
                         
-                        # Update PATH
-                        export PATH="/usr/local/go/bin:$PATH"
+                        # Update PATH for this session
+                        export PATH="$HOME/go-1.23/go/bin:$PATH"
+                        export GOROOT="$HOME/go-1.23/go"
                         
-                        echo "✅ Go 1.23 installed (supports go.mod 1.24)"
+                        echo "✅ Go 1.23 installed in user space"
                         echo "New Go version: $(go version)"
                     else
                         echo "✅ Go 1.23 already available"
