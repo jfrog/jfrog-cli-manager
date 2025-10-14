@@ -1,104 +1,177 @@
 #!/usr/bin/env groovy
 
-node("docker-ubuntu20-xlarge") {
+// ============================================================================
+// CONFIGURABLE VARIABLES - Easy to change target Artifactory
+// ============================================================================
+
+// PIPELINE PARAMETERS (can be overridden when running)
+properties([
+    parameters([
+        booleanParam(
+            name: 'LOCAL_TESTING',
+            defaultValue: false,
+            description: 'Force local testing mode'
+        ),
+        string(
+            name: 'ARTIFACTORY_URL_OVERRIDE',
+            defaultValue: '',
+            description: 'Override Artifactory URL (e.g., http://my-artifactory:8082/artifactory)'
+        ),
+        string(
+            name: 'BINARIES_REPO_OVERRIDE',
+            defaultValue: '',
+            description: 'Override binaries repository name (e.g., my-jfcm-binaries)'
+        ),
+        booleanParam(
+            name: 'SKIP_PACKAGING',
+            defaultValue: false,
+            description: 'Skip package creation (NPM, Chocolatey, etc.)'
+        ),
+        booleanParam(
+            name: 'SKIP_TESTS',
+            defaultValue: false,
+            description: 'Skip cross-platform testing'
+        )
+    ])
+])
+
+// Environment detection for local vs production testing
+def isLocalTesting = env.JENKINS_URL?.contains('localhost') || 
+                     env.JENKINS_URL?.contains('127.0.0.1') ||
+                     params.LOCAL_TESTING == true
+
+// Artifactory Configuration (easily configurable with parameter overrides)
+def artifactoryConfig = [
+    local: [
+        url: params.ARTIFACTORY_URL_OVERRIDE ?: "http://host.docker.internal:8082/artifactory",
+        credentials: "local-artifactory-creds",
+        binariesRepo: params.BINARIES_REPO_OVERRIDE ?: "jfcm",
+        npmRepo: "jfcm-npm", 
+        debsRepo: "jfcm-debs",
+        rpmsRepo: "jfcm-rpms",
+        dockerRepo: "jfcm-docker"
+    ],
+    production: [
+        url: params.ARTIFACTORY_URL_OVERRIDE ?: "https://releases.jfrog.io/artifactory",
+        credentials: "repo21",
+        binariesRepo: params.BINARIES_REPO_OVERRIDE ?: "jfcm",
+        npmRepo: "jfcm-npm",
+        debsRepo: "jfcm-debs", 
+        rpmsRepo: "jfcm-rpms",
+        dockerRepo: "jfcm-docker"
+    ]
+]
+
+// Select configuration based on environment
+def currentConfig = isLocalTesting ? artifactoryConfig.local : artifactoryConfig.production
+
+// Dynamic node selection based on environment
+def nodeLabel = isLocalTesting ? "any" : "docker-ubuntu20-xlarge"
+
+echo "🎯 Environment: ${isLocalTesting ? 'LOCAL TESTING' : 'PRODUCTION'}"
+echo "Using node: ${nodeLabel}"
+echo "Artifactory URL: ${currentConfig.url}"
+echo "Binaries repo: ${currentConfig.binariesRepo}"
+
+node(nodeLabel) {
     cleanWs()
     
     // Global variables
     def architectures = [
-        [pkg: 'jfvm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe', chocoImage: 'jfrog-docker/linuturk/mono-choco'],
-        [pkg: 'jfvm-linux-386', goos: 'linux', goarch: '386', fileExtension: '', debianImage: 'jfrog-docker/i386/ubuntu:20.04', debianArch: 'i386'],
-        [pkg: 'jfvm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: '', debianImage: 'jfrog-docker/ubuntu:20.04', debianArch: 'x86_64', rpmImage: 'almalinux:8.10'],
-        [pkg: 'jfvm-linux-arm64', goos: 'linux', goarch: 'arm64', fileExtension: ''],
-        [pkg: 'jfvm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
-        [pkg: 'jfvm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
-        [pkg: 'jfvm-mac-arm64', goos: 'darwin', goarch: 'arm64', fileExtension: ''],
-        [pkg: 'jfvm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: ''],
-        [pkg: 'jfvm-linux-ppc64', goos: 'linux', goarch: 'ppc64', fileExtension: ''],
-        [pkg: 'jfvm-linux-ppc64le', goos: 'linux', goarch: 'ppc64le', fileExtension: '']
+        [pkg: 'jfcm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe', chocoImage: 'jfrog-docker/linuturk/mono-choco'],
+        [pkg: 'jfcm-linux-386', goos: 'linux', goarch: '386', fileExtension: '', debianImage: 'jfrog-docker/i386/ubuntu:20.04', debianArch: 'i386'],
+        [pkg: 'jfcm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: '', debianImage: 'jfrog-docker/ubuntu:20.04', debianArch: 'x86_64', rpmImage: 'almalinux:8.10'],
+        [pkg: 'jfcm-linux-arm64', goos: 'linux', goarch: 'arm64', fileExtension: ''],
+        [pkg: 'jfcm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
+        [pkg: 'jfcm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
+        [pkg: 'jfcm-mac-arm64', goos: 'darwin', goarch: 'arm64', fileExtension: ''],
+        [pkg: 'jfcm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: ''],
+        [pkg: 'jfcm-linux-ppc64', goos: 'linux', goarch: 'ppc64', fileExtension: ''],
+        [pkg: 'jfcm-linux-ppc64le', goos: 'linux', goarch: 'ppc64le', fileExtension: '']
     ]
     
-    def jfvmExecutableName = 'jfvm'
+    def jfcmExecutableName = 'jfcm'
     def identifier = 'v1'
-    def jfvmRepoDir = pwd() + "/jfvm/"
-    def buildName = 'jfvm-multi-platform'
+    def jfcmRepoDir = pwd() + "/jfcm/"
+    def buildName = 'jfcm-multi-platform'
     def buildNumber = env.BUILD_NUMBER
-    def jfvmVersion
+    def jfcmVersion
     def publishToProd = false
     
     // Determine if this is a production release
     if (env.BRANCH_NAME?.startsWith('v') || env.TAG_NAME?.startsWith('v')) {
         publishToProd = true
-        jfvmVersion = env.TAG_NAME ?: env.BRANCH_NAME
+        jfcmVersion = env.TAG_NAME ?: env.BRANCH_NAME
     } else {
-        jfvmVersion = "dev-${buildNumber}"
+        jfcmVersion = "dev-${buildNumber}"
     }
     
     timestamps {
         try {
             stage('Checkout') {
-                echo "Checking out JFVM repository..."
+                echo "Checking out JFCM repository..."
                 checkout scm
-                dir(jfvmRepoDir) {
+                dir(jfcmRepoDir) {
                     // Get the actual version from git or go.mod if available
                     script {
                         try {
-                            jfvmVersion = sh(
+                            jfcmVersion = sh(
                                 script: 'git describe --tags --exact-match HEAD 2>/dev/null || echo "dev-' + buildNumber + '"',
                                 returnStdout: true
                             ).trim()
                         } catch (Exception e) {
-                            echo "Could not determine version from git tags, using: ${jfvmVersion}"
+                            echo "Could not determine version from git tags, using: ${jfcmVersion}"
                         }
                     }
-                    echo "Building JFVM version: ${jfvmVersion}"
+                    echo "Building JFCM version: ${jfcmVersion}"
                 }
             }
             
             stage('Setup') {
                 echo "Setting up build environment..."
-                setupBuildEnvironment(jfvmRepoDir)
+                setupBuildEnvironment(jfcmRepoDir)
             }
             
-            stage('Build JFVM Binaries') {
-                echo "Building JFVM binaries for all platforms..."
-                buildJfvmBinaries(architectures, jfvmExecutableName, jfvmRepoDir, jfvmVersion)
+            stage('Build JFCM Binaries') {
+                echo "Building JFCM binaries for all platforms..."
+                buildJfcmBinaries(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion)
             }
             
             stage('Sign Binaries') {
                 echo "Signing binaries..."
-                signBinaries(architectures, jfvmExecutableName, jfvmRepoDir)
+                signBinaries(architectures, jfcmExecutableName, jfcmRepoDir)
             }
             
             stage('Create Packages') {
                 echo "Creating distribution packages..."
-                createPackages(architectures, jfvmExecutableName, jfvmRepoDir, jfvmVersion, identifier)
+                createPackages(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier)
             }
             
             stage('Test Packages') {
                 echo "Testing created packages..."
-                testPackages(architectures, jfvmExecutableName, jfvmRepoDir)
+                testPackages(architectures, jfcmExecutableName, jfcmRepoDir)
             }
             
             stage('Upload to Artifactory') {
                 echo "Uploading artifacts to Artifactory..."
-                uploadToArtifactory(architectures, jfvmExecutableName, jfvmRepoDir, jfvmVersion, identifier, buildName, buildNumber)
+                uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier, buildName, buildNumber)
             }
             
             if (publishToProd) {
                 stage('Publish Packages') {
                     echo "Publishing packages to production repositories..."
-                    publishPackages(architectures, jfvmExecutableName, jfvmRepoDir, jfvmVersion, identifier)
+                    publishPackages(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier)
                 }
                 
                 stage('Update Documentation') {
                     echo "Updating installation documentation..."
-                    updateInstallationDocs(jfvmVersion)
+                    updateInstallationDocs(jfcmVersion)
                 }
             }
             
             stage('Cleanup') {
                 echo "Cleaning up build artifacts..."
-                cleanupBuildArtifacts(jfvmRepoDir)
+                cleanupBuildArtifacts(jfcmRepoDir)
             }
             
         } catch (Exception e) {
@@ -112,32 +185,68 @@ node("docker-ubuntu20-xlarge") {
     }
 }
 
-def setupBuildEnvironment(jfvmRepoDir) {
-    dir(jfvmRepoDir) {
-        // Install Go if not available
-        sh """
-            if ! command -v go >/dev/null 2>&1; then
-                echo "Installing Go..."
-                wget -q https://golang.org/dl/go1.21.5.linux-amd64.tar.gz
-                sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
-                export PATH=\$PATH:/usr/local/go/bin
-            fi
-            go version
-        """
+def setupBuildEnvironment(jfcmRepoDir) {
+    dir(jfcmRepoDir) {
+        // Environment-aware Go installation
+        def isLocal = env.JENKINS_URL?.contains('localhost')
         
-        // Verify build directory structure
+        if (isLocal) {
+            // Local environment - install Go 1.23 in user space (from working Jenkinsfile.local)
+            sh """
+                echo "🔧 Setting up local build environment..."
+                
+                # Check current Go version
+                echo "Current Go version: \$(go version)"
+                
+                # Install Go 1.23 in user space if needed (supports go.mod 1.24)
+                if ! go version | grep -q "go1.23"; then
+                    echo "📥 Installing Go 1.23 for go.mod 1.24 compatibility..."
+                    
+                    # Download and install Go 1.23 in user space
+                    curl -L -o go1.23.tar.gz "https://go.dev/dl/go1.23.2.linux-amd64.tar.gz"
+                    
+                    # Install in user home directory
+                    rm -rf ~/go-1.23
+                    mkdir -p ~/go-1.23
+                    tar -C ~/go-1.23 -xzf go1.23.tar.gz
+                    rm go1.23.tar.gz
+                    
+                    # Update PATH for this session
+                    export PATH="\$HOME/go-1.23/go/bin:\$PATH"
+                    export GOROOT="\$HOME/go-1.23/go"
+                    
+                    echo "✅ Go 1.23 installed in user space"
+                    echo "New Go version: \$(go version)"
+                else
+                    echo "✅ Go 1.23 already available"
+                fi
+            """
+        } else {
+            // Production environment - use system Go or install as needed
+            sh """
+                if ! command -v go >/dev/null 2>&1; then
+                    echo "Installing Go for production..."
+                    wget -q https://golang.org/dl/go1.23.2.linux-amd64.tar.gz
+                    sudo tar -C /usr/local -xzf go1.23.2.linux-amd64.tar.gz
+                    export PATH=\$PATH:/usr/local/go/bin
+                fi
+                go version
+            """
+        }
+        
+        // Verify build directory structure (identical for both environments)
         sh """
             mkdir -p build/{sign,apple_release/scripts,npm/v1,chocolatey/v1,deb_rpm/v1/build-scripts,docker,getcli,installcli,setupcli}
             mkdir -p dist/{binaries,packages,signed}
         """
         
-        // Download dependencies
+        // Download dependencies (identical for both environments)
         sh "go mod download"
         sh "go mod verify"
     }
 }
 
-def buildJfvmBinaries(architectures, jfvmExecutableName, jfvmRepoDir, version) {
+def buildJfvmBinaries(architectures, jfcmExecutableName, jfcmRepoDir, version) {
     def buildSteps = [:]
     
     architectures.each { architecture ->
@@ -145,10 +254,10 @@ def buildJfvmBinaries(architectures, jfvmExecutableName, jfvmRepoDir, version) {
         def goarch = architecture.goarch
         def pkg = architecture.pkg
         def fileExtension = architecture.fileExtension
-        def fileName = "${jfvmExecutableName}${fileExtension}"
+        def fileName = "${jfcmExecutableName}${fileExtension}"
         
         buildSteps["${pkg}"] = {
-            build(goos, goarch, pkg, fileName, jfvmRepoDir, version)
+            build(goos, goarch, pkg, fileName, jfcmRepoDir, version)
         }
     }
     
@@ -156,8 +265,8 @@ def buildJfvmBinaries(architectures, jfvmExecutableName, jfvmRepoDir, version) {
     parallel buildSteps
 }
 
-def build(goos, goarch, pkg, fileName, jfvmRepoDir, version) {
-    dir(jfvmRepoDir) {
+def build(goos, goarch, pkg, fileName, jfcmRepoDir, version) {
+    dir(jfcmRepoDir) {
         echo "Building ${pkg} (${goos}/${goarch})..."
         
         // Set build environment
@@ -189,22 +298,22 @@ def build(goos, goarch, pkg, fileName, jfvmRepoDir, version) {
     }
 }
 
-def signBinaries(architectures, jfvmExecutableName, jfvmRepoDir) {
+def signBinaries(architectures, jfcmExecutableName, jfcmRepoDir) {
     def signingSteps = [:]
     
     architectures.each { architecture ->
         def goos = architecture.goos
         def pkg = architecture.pkg
         def fileExtension = architecture.fileExtension
-        def fileName = "${jfvmExecutableName}${fileExtension}"
+        def fileName = "${jfcmExecutableName}${fileExtension}"
         
         if (goos == 'windows') {
             signingSteps["sign-${pkg}"] = {
-                signWindowsBinary(pkg, fileName, jfvmRepoDir)
+                signWindowsBinary(pkg, fileName, jfcmRepoDir)
             }
         } else if (goos == 'darwin') {
             signingSteps["sign-${pkg}"] = {
-                signMacOSBinary(pkg, fileName, jfvmRepoDir)
+                signMacOSBinary(pkg, fileName, jfcmRepoDir)
             }
         }
     }
@@ -216,8 +325,8 @@ def signBinaries(architectures, jfvmExecutableName, jfvmRepoDir) {
     }
 }
 
-def signWindowsBinary(pkg, fileName, jfvmRepoDir) {
-    dir("${jfvmRepoDir}/build/sign") {
+def signWindowsBinary(pkg, fileName, jfcmRepoDir) {
+    dir("${jfcmRepoDir}/build/sign") {
         echo "Signing Windows binary: ${pkg}/${fileName}"
         
         // Move unsigned binary
@@ -290,11 +399,11 @@ EOF
             string(credentialsId: 'windows-signing-password', variable: 'WINDOWS_CERT_PASSWORD')
         ]) {
             sh """
-                docker build -t jfvm-sign-tool .
+                docker build -t jfcm-sign-tool .
                 docker run -v \$(pwd):/workspace \
                     -e CERT_FILE=/workspace/cert.p12 \
                     -e CERT_PASSWORD=\${WINDOWS_CERT_PASSWORD} \
-                    jfvm-sign-tool -in ${fileName}.unsigned -out ${fileName}
+                    jfcm-sign-tool -in ${fileName}.unsigned -out ${fileName}
             """
         }
         
@@ -305,8 +414,8 @@ EOF
     }
 }
 
-def signMacOSBinary(pkg, fileName, jfvmRepoDir) {
-    dir("${jfvmRepoDir}/build/apple_release/scripts") {
+def signMacOSBinary(pkg, fileName, jfcmRepoDir) {
+    dir("${jfcmRepoDir}/build/apple_release/scripts") {
         echo "Signing macOS binary: ${pkg}/${fileName}"
         
         // Create signing script if it doesn't exist
@@ -346,54 +455,54 @@ EOF
     }
 }
 
-def createPackages(architectures, jfvmExecutableName, jfvmRepoDir, version, identifier) {
+def createPackages(architectures, jfcmExecutableName, jfcmRepoDir, version, identifier) {
     def packageSteps = [:]
     
     // Create NPM package
     packageSteps['npm'] = {
-        createNpmPackage(jfvmExecutableName, jfvmRepoDir, version, identifier)
+        createNpmPackage(jfcmExecutableName, jfcmRepoDir, version, identifier)
     }
     
     // Create Chocolatey package
     packageSteps['chocolatey'] = {
-        createChocolateyPackage(jfvmExecutableName, jfvmRepoDir, version, identifier)
+        createChocolateyPackage(jfcmExecutableName, jfcmRepoDir, version, identifier)
     }
     
     // Create Debian packages
     architectures.findAll { it.goos == 'linux' && it.debianImage }.each { architecture ->
         packageSteps["deb-${architecture.pkg}"] = {
-            createDebianPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, identifier)
+            createDebianPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, identifier)
         }
     }
     
     // Create RPM packages
     architectures.findAll { it.goos == 'linux' && it.rpmImage }.each { architecture ->
         packageSteps["rpm-${architecture.pkg}"] = {
-            createRpmPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, identifier)
+            createRpmPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, identifier)
         }
     }
     
     // Create Docker images
     packageSteps['docker'] = {
-        createDockerImages(jfvmExecutableName, jfvmRepoDir, version)
+        createDockerImages(jfcmExecutableName, jfcmRepoDir, version)
     }
     
     parallel packageSteps
 }
 
-def createNpmPackage(jfvmExecutableName, jfvmRepoDir, version, identifier) {
-    dir("${jfvmRepoDir}/build/npm/${identifier}") {
+def createNpmPackage(jfcmExecutableName, jfcmRepoDir, version, identifier) {
+    dir("${jfcmRepoDir}/build/npm/${identifier}") {
         echo "Creating NPM package..."
         
         // Create package.json
         writeFile file: 'package.json', text: """
 {
-    "name": "@jfrog/jfvm",
+    "name": "@jfrog/jfcm",
     "version": "${version.replaceFirst('^v', '')}",
     "description": "JFrog CLI Version Manager - Manage multiple versions of JFrog CLI",
     "main": "init.js",
     "bin": {
-        "jfvm": "./bin/jfvm"
+        "jfcm": "./bin/jfcm"
     },
     "scripts": {
         "install": "node init.js"
@@ -500,8 +609,8 @@ async function downloadFile(url, dest) {
 async function downloadJfvm() {
     const architecture = getArchitecture();
     const version = require("./package.json").version;
-    const fileName = process.platform.startsWith("win") ? "jfvm.exe" : "jfvm";
-    const url = `https://releases.jfrog.io/artifactory/jfvm/v1/${version}/jfvm-${architecture}/${fileName}`;
+    const fileName = process.platform.startsWith("win") ? "jfcm.exe" : "jfcm";
+    const url = `https://releases.jfrog.io/artifactory/jfcm/v1/${version}/jfcm-${architecture}/${fileName}`;
     
     console.log(`Downloading JFVM ${version} for ${architecture}...`);
     
@@ -562,9 +671,9 @@ async function main() {
         console.log("\\u001b[32m╚═══════════════════════════════════════════════════════════════════╝\\u001b[0m");
         console.log("");
         console.log("\\u001b[34mNext steps:\\u001b[0m");
-        console.log("  jfvm install latest    # Install latest JFrog CLI");
-        console.log("  jfvm use latest        # Switch to latest version");
-        console.log("  jfvm --help            # Show all commands");
+        console.log("  jfcm install latest    # Install latest JFrog CLI");
+        console.log("  jfcm use latest        # Switch to latest version");
+        console.log("  jfcm --help            # Show all commands");
         console.log("");
         
     } catch (error) {
@@ -580,32 +689,32 @@ if (require.main === module) {
         
         sh """
             mkdir -p ../../../dist/packages/npm
-            tar -czf "../../../dist/packages/npm/jfvm-${version}.tgz" .
+            tar -czf "../../../dist/packages/npm/jfcm-${version}.tgz" .
         """
         
         echo "NPM package created successfully"
     }
 }
 
-def createChocolateyPackage(jfvmExecutableName, jfvmRepoDir, version, identifier) {
-    dir("${jfvmRepoDir}/build/chocolatey/${identifier}") {
+def createChocolateyPackage(jfcmExecutableName, jfcmRepoDir, version, identifier) {
+    dir("${jfcmRepoDir}/build/chocolatey/${identifier}") {
         echo "Creating Chocolatey package..."
         
         def cleanVersion = version.replaceFirst('^v', '')
         
         // Create nuspec file
-        writeFile file: 'jfvm.nuspec', text: """
+        writeFile file: 'jfcm.nuspec', text: """
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
-    <id>jfvm</id>
+    <id>jfcm</id>
     <version>${cleanVersion}</version>
     <packageSourceUrl>https://github.com/jfrog/jfrog-cli-vm</packageSourceUrl>
     <owners>JFrog</owners>
     <title>JFVM (JFrog CLI Version Manager)</title>
     <authors>JFrog Ltd.</authors>
     <projectUrl>https://github.com/jfrog/jfrog-cli-vm</projectUrl>
-    <iconUrl>https://raw.githubusercontent.com/jfrog/jfrog-cli-vm/main/docs/images/jfvm-icon.png</iconUrl>
+    <iconUrl>https://raw.githubusercontent.com/jfrog/jfrog-cli-vm/main/docs/images/jfcm-icon.png</iconUrl>
     <copyright>2024 JFrog Ltd.</copyright>
     <licenseUrl>https://raw.githubusercontent.com/jfrog/jfrog-cli-vm/main/LICENSE</licenseUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
@@ -641,7 +750,7 @@ Use --params '/InstallJfrogCli' to also install JFrog CLI alongside JFVM.
         writeFile file: 'tools/chocolateyinstall.ps1', text: '''
 $ErrorActionPreference = 'Stop'
 
-$packageName = 'jfvm'
+$packageName = 'jfcm'
 $version = $env:ChocolateyPackageVersion
 $packageParameters = Get-PackageParameters
 
@@ -650,15 +759,15 @@ Write-Host "Installing JFVM (JFrog CLI Version Manager)..." -ForegroundColor Gre
 $packageArgs = @{
     packageName   = $packageName
     fileType      = 'exe'
-    url           = "https://releases.jfrog.io/artifactory/jfvm/v1/$version/jfvm-windows-amd64/jfvm.exe"
+    url           = "https://releases.jfrog.io/artifactory/jfcm/v1/$version/jfcm-windows-amd64/jfcm.exe"
     checksum      = ''  # Will be populated during build
     checksumType  = 'sha256'
 }
 
 $toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$jfvmPath = Join-Path $toolsDir "jfvm.exe"
+$jfcmPath = Join-Path $toolsDir "jfcm.exe"
 
-Get-ChocolateyWebFile -PackageName $packageName -FileFullPath $jfvmPath -Url $packageArgs.url -Checksum $packageArgs.checksum -ChecksumType $packageArgs.checksumType
+Get-ChocolateyWebFile -PackageName $packageName -FileFullPath $jfcmPath -Url $packageArgs.url -Checksum $packageArgs.checksum -ChecksumType $packageArgs.checksumType
 
 # Add to PATH
 Install-ChocolateyPath $toolsDir
@@ -679,30 +788,30 @@ if ($installJfrogCli) {
     Write-Host ""
     Write-Host "💡 Tip: You can install JFrog CLI later using:" -ForegroundColor Blue
     Write-Host "   choco install jfrog-cli-v2-jf"
-    Write-Host "   Or reinstall JFVM with: choco install jfvm --params '/InstallJfrogCli'"
+    Write-Host "   Or reinstall JFVM with: choco install jfcm --params '/InstallJfrogCli'"
 }
 
 Write-Host ""
 Write-Host "✅ JFVM installation completed!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Next steps:" -ForegroundColor Blue
-Write-Host "  jfvm install latest    # Install latest JFrog CLI"
-Write-Host "  jfvm use latest        # Switch to latest version"
-Write-Host "  jfvm --help            # Show all commands"
+Write-Host "  jfcm install latest    # Install latest JFrog CLI"
+Write-Host "  jfcm use latest        # Switch to latest version"
+Write-Host "  jfcm --help            # Show all commands"
 '''
 
         writeFile file: 'tools/chocolateyuninstall.ps1', text: '''
 $ErrorActionPreference = 'Stop'
 
-$packageName = 'jfvm'
+$packageName = 'jfcm'
 $toolsDir = "$(Split-Path -parent $MyInvocation.MyCommand.Definition)"
-$jfvmPath = Join-Path $toolsDir "jfvm.exe"
+$jfcmPath = Join-Path $toolsDir "jfcm.exe"
 
 Write-Host "Uninstalling JFVM..." -ForegroundColor Yellow
 
 # Remove binary
-if (Test-Path $jfvmPath) {
-    Remove-Item $jfvmPath -Force
+if (Test-Path $jfcmPath) {
+    Remove-Item $jfcmPath -Force
     Write-Host "Removed JFVM binary" -ForegroundColor Green
 }
 
@@ -719,7 +828,7 @@ in verifying that this package's contents are trustworthy.
 Package can be verified like this:
 
 1. Download JFVM from the official JFrog releases:
-   https://releases.jfrog.io/artifactory/jfvm/v1/${cleanVersion}/jfvm-windows-amd64/jfvm.exe
+   https://releases.jfrog.io/artifactory/jfcm/v1/${cleanVersion}/jfcm-windows-amd64/jfcm.exe
 
 2. You can use one of the following methods to obtain the SHA256 checksum:
    - Use powershell function 'Get-FileHash'
@@ -740,7 +849,7 @@ File 'LICENSE.txt' is obtained from:
     }
 }
 
-def createDebianPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, identifier) {
+def createDebianPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, identifier) {
     def pkg = architecture.pkg
     def goarch = architecture.goarch
     def debianImage = architecture.debianImage
@@ -748,11 +857,11 @@ def createDebianPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, 
     
     echo "Creating Debian package for ${pkg}..."
     
-    dir("${jfvmRepoDir}/build/deb_rpm/${identifier}/build-scripts") {
+    dir("${jfcmRepoDir}/build/deb_rpm/${identifier}/build-scripts") {
         // Use the signed binary if available, otherwise use the unsigned one
-        def binaryPath = fileExists("../../../../dist/signed/${pkg}/${jfvmExecutableName}") ? 
-            "../../../../dist/signed/${pkg}/${jfvmExecutableName}" : 
-            "../../../../dist/binaries/${pkg}/${jfvmExecutableName}"
+        def binaryPath = fileExists("../../../../dist/signed/${pkg}/${jfcmExecutableName}") ? 
+            "../../../../dist/signed/${pkg}/${jfcmExecutableName}" : 
+            "../../../../dist/binaries/${pkg}/${jfcmExecutableName}"
             
         sh """
             docker run --rm -v \$(pwd)/../../../../:/workspace ${debianImage} bash -c "
@@ -765,15 +874,15 @@ def createDebianPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, 
                 # Create package structure
                 mkdir -p build/deb/${pkg}/DEBIAN
                 mkdir -p build/deb/${pkg}/usr/bin
-                mkdir -p build/deb/${pkg}/usr/share/doc/jfvm
+                mkdir -p build/deb/${pkg}/usr/share/doc/jfcm
                 
                 # Copy binary
-                cp ${binaryPath} build/deb/${pkg}/usr/bin/jfvm
-                chmod 755 build/deb/${pkg}/usr/bin/jfvm
+                cp ${binaryPath} build/deb/${pkg}/usr/bin/jfcm
+                chmod 755 build/deb/${pkg}/usr/bin/jfcm
                 
                 # Create control file
                 cat > build/deb/${pkg}/DEBIAN/control << EOF
-Package: jfvm
+Package: jfcm
 Version: ${version.replaceFirst('^v', '')}
 Section: utils
 Priority: optional
@@ -804,17 +913,17 @@ echo \"💡 Optional: Install JFrog CLI for full JFrog platform integration:\"
 echo \"   curl -fL https://install-cli.jfrog.io | sh\"
 echo \"\"
 echo \"Next steps:\"
-echo \"  jfvm install latest    # Install latest JFrog CLI\"
-echo \"  jfvm use latest        # Switch to latest version\"
-echo \"  jfvm --help            # Show all commands\"
+echo \"  jfcm install latest    # Install latest JFrog CLI\"
+echo \"  jfcm use latest        # Switch to latest version\"
+echo \"  jfcm --help            # Show all commands\"
 echo \"\"
 EOF
                 chmod 755 build/deb/${pkg}/DEBIAN/postinst
                 
                 # Create copyright file
-                cat > build/deb/${pkg}/usr/share/doc/jfvm/copyright << EOF
+                cat > build/deb/${pkg}/usr/share/doc/jfcm/copyright << EOF
 Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: jfvm
+Upstream-Name: jfcm
 Source: https://github.com/jfrog/jfrog-cli-vm
 
 Files: *
@@ -824,22 +933,22 @@ EOF
 
                 # Build package
                 dpkg-deb --build build/deb/${pkg}
-                mv build/deb/${pkg}.deb dist/packages/jfvm_${version.replaceFirst('^v', '')}_${debianArch}.deb
+                mv build/deb/${pkg}.deb dist/packages/jfcm_${version.replaceFirst('^v', '')}_${debianArch}.deb
             "
         """
     }
 }
 
-def createRpmPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, identifier) {
+def createRpmPackage(architecture, jfcmExecutableName, jfcmRepoDir, version, identifier) {
     def pkg = architecture.pkg
     def rpmImage = architecture.rpmImage
     
     echo "Creating RPM package for ${pkg}..."
     
-    dir("${jfvmRepoDir}/build/deb_rpm/${identifier}/build-scripts") {
-        def binaryPath = fileExists("../../../../dist/signed/${pkg}/${jfvmExecutableName}") ? 
-            "../../../../dist/signed/${pkg}/${jfvmExecutableName}" : 
-            "../../../../dist/binaries/${pkg}/${jfvmExecutableName}"
+    dir("${jfcmRepoDir}/build/deb_rpm/${identifier}/build-scripts") {
+        def binaryPath = fileExists("../../../../dist/signed/${pkg}/${jfcmExecutableName}") ? 
+            "../../../../dist/signed/${pkg}/${jfcmExecutableName}" : 
+            "../../../../dist/binaries/${pkg}/${jfcmExecutableName}"
             
         sh """
             docker run --rm -v \$(pwd)/../../../../:/workspace ${rpmImage} bash -c "
@@ -852,14 +961,14 @@ def createRpmPackage(architecture, jfvmExecutableName, jfvmRepoDir, version, ide
                 rpmdev-setuptree
                 
                 # Create spec file
-                cat > ~/rpmbuild/SPECS/jfvm.spec << EOF
-Name:           jfvm
+                cat > ~/rpmbuild/SPECS/jfcm.spec << EOF
+Name:           jfcm
 Version:        ${version.replaceFirst('^v', '')}
 Release:        1%{?dist}
 Summary:        JFrog CLI Version Manager
 License:        MIT
 URL:            https://github.com/jfrog/jfrog-cli-vm
-Source0:        jfvm
+Source0:        jfcm
 BuildArch:      x86_64
 
 %description
@@ -874,11 +983,11 @@ multiple versions of JFrog CLI on your system. Features include:
 
 %install
 mkdir -p %{buildroot}%{_bindir}
-cp %{SOURCE0} %{buildroot}%{_bindir}/jfvm
-chmod 755 %{buildroot}%{_bindir}/jfvm
+cp %{SOURCE0} %{buildroot}%{_bindir}/jfcm
+chmod 755 %{buildroot}%{_bindir}/jfcm
 
 %files
-%{_bindir}/jfvm
+%{_bindir}/jfcm
 
 %post
 echo \"\"
@@ -888,9 +997,9 @@ echo \"💡 Optional: Install JFrog CLI for full JFrog platform integration:\"
 echo \"   curl -fL https://install-cli.jfrog.io | sh\"
 echo \"\"
 echo \"Next steps:\"
-echo \"  jfvm install latest    # Install latest JFrog CLI\"
-echo \"  jfvm use latest        # Switch to latest version\"
-echo \"  jfvm --help            # Show all commands\"
+echo \"  jfcm install latest    # Install latest JFrog CLI\"
+echo \"  jfcm use latest        # Switch to latest version\"
+echo \"  jfcm --help            # Show all commands\"
 echo \"\"
 
 %changelog
@@ -899,21 +1008,21 @@ echo \"\"
 EOF
 
                 # Copy source
-                cp ${binaryPath} ~/rpmbuild/SOURCES/jfvm
+                cp ${binaryPath} ~/rpmbuild/SOURCES/jfcm
                 
                 # Build RPM
-                rpmbuild -ba ~/rpmbuild/SPECS/jfvm.spec
+                rpmbuild -ba ~/rpmbuild/SPECS/jfcm.spec
                 
                 # Copy result
                 mkdir -p dist/packages
-                cp ~/rpmbuild/RPMS/x86_64/jfvm-*.rpm dist/packages/
+                cp ~/rpmbuild/RPMS/x86_64/jfcm-*.rpm dist/packages/
             "
         """
     }
 }
 
-def createDockerImages(jfvmExecutableName, jfvmRepoDir, version) {
-    dir("${jfvmRepoDir}/build/docker") {
+def createDockerImages(jfcmExecutableName, jfcmRepoDir, version) {
+    dir("${jfcmRepoDir}/build/docker") {
         echo "Creating Docker images..."
         
         // Create slim Docker image
@@ -924,33 +1033,33 @@ FROM alpine:latest
 # Install dependencies
 RUN apk add --no-cache ca-certificates git curl
 
-# Create jfvm user
-RUN addgroup -g 1000 jfvm && \\
-    adduser -D -s /bin/sh -u 1000 -G jfvm jfvm
+# Create jfcm user
+RUN addgroup -g 1000 jfcm && \\
+    adduser -D -s /bin/sh -u 1000 -G jfcm jfcm
 
 # Copy JFVM binary
-COPY jfvm /usr/local/bin/jfvm
-RUN chmod +x /usr/local/bin/jfvm
+COPY jfcm /usr/local/bin/jfcm
+RUN chmod +x /usr/local/bin/jfcm
 
-# Switch to jfvm user
-USER jfvm
-WORKDIR /home/jfvm
+# Switch to jfcm user
+USER jfcm
+WORKDIR /home/jfcm
 
 # Initialize JFVM
-RUN jfvm --version
+RUN jfcm --version
 
-ENTRYPOINT ["jfvm"]
+ENTRYPOINT ["jfcm"]
 CMD ["--help"]
 """
             
             sh """
-                cp ../../../dist/binaries/jfvm-linux-amd64/jfvm .
-                docker build -t jfrog/jfvm:${version} .
-                docker tag jfrog/jfvm:${version} jfrog/jfvm:latest
+                cp ../../../dist/binaries/jfcm-linux-amd64/jfcm .
+                docker build -t jfrog/jfcm:${version} .
+                docker tag jfrog/jfcm:${version} jfrog/jfcm:latest
                 
                 # Save image
                 mkdir -p ../../../dist/packages/docker
-                docker save jfrog/jfvm:${version} | gzip > ../../../dist/packages/docker/jfvm-${version}.tar.gz
+                docker save jfrog/jfcm:${version} | gzip > ../../../dist/packages/docker/jfcm-${version}.tar.gz
             """
         }
         
@@ -962,9 +1071,9 @@ FROM alpine:latest
 # Install dependencies
 RUN apk add --no-cache ca-certificates git curl bash
 
-# Create jfvm user
-RUN addgroup -g 1000 jfvm && \\
-    adduser -D -s /bin/bash -u 1000 -G jfvm jfvm
+# Create jfcm user
+RUN addgroup -g 1000 jfcm && \\
+    adduser -D -s /bin/bash -u 1000 -G jfcm jfcm
 
 # Install JFrog CLI
 RUN curl -fL https://install-cli.jfrog.io | sh && \\
@@ -972,53 +1081,53 @@ RUN curl -fL https://install-cli.jfrog.io | sh && \\
     chmod +x /usr/local/bin/jf
 
 # Copy JFVM binary
-COPY jfvm /usr/local/bin/jfvm
-RUN chmod +x /usr/local/bin/jfvm
+COPY jfcm /usr/local/bin/jfcm
+RUN chmod +x /usr/local/bin/jfcm
 
-# Switch to jfvm user
-USER jfvm
-WORKDIR /home/jfvm
+# Switch to jfcm user
+USER jfcm
+WORKDIR /home/jfcm
 
 # Initialize JFVM and install latest JF CLI
-RUN jfvm --version && \\
-    jfvm install latest && \\
-    jfvm use latest
+RUN jfcm --version && \\
+    jfcm install latest && \\
+    jfcm use latest
 
-ENTRYPOINT ["jfvm"]
+ENTRYPOINT ["jfcm"]
 CMD ["--help"]
 """
             
             sh """
-                cp ../../../dist/binaries/jfvm-linux-amd64/jfvm .
-                docker build -t jfrog/jfvm:${version}-full .
-                docker tag jfrog/jfvm:${version}-full jfrog/jfvm:latest-full
+                cp ../../../dist/binaries/jfcm-linux-amd64/jfcm .
+                docker build -t jfrog/jfcm:${version}-full .
+                docker tag jfrog/jfcm:${version}-full jfrog/jfcm:latest-full
                 
                 # Save image
-                docker save jfrog/jfvm:${version}-full | gzip > ../../../dist/packages/docker/jfvm-${version}-full.tar.gz
+                docker save jfrog/jfcm:${version}-full | gzip > ../../../dist/packages/docker/jfcm-${version}-full.tar.gz
             """
         }
     }
 }
 
-def testPackages(architectures, jfvmExecutableName, jfvmRepoDir) {
+def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
     echo "Testing packages..."
     
-    dir(jfvmRepoDir) {
+    dir(jfcmRepoDir) {
         // Test NPM package
         sh """
-            if [ -f dist/packages/npm/jfvm-*.tgz ]; then
+            if [ -f dist/packages/npm/jfcm-*.tgz ]; then
                 echo "Testing NPM package..."
                 cd /tmp
-                npm pack ../dist/packages/npm/jfvm-*.tgz
+                npm pack ../dist/packages/npm/jfcm-*.tgz
                 echo "NPM package test passed"
             fi
         """
         
         // Test Docker images
         sh """
-            if docker images | grep -q jfrog/jfvm; then
+            if docker images | grep -q jfrog/jfcm; then
                 echo "Testing Docker image..."
-                docker run --rm jfrog/jfvm:latest --version
+                docker run --rm jfrog/jfcm:latest --version
                 echo "Docker image test passed"
             fi
         """
@@ -1026,7 +1135,7 @@ def testPackages(architectures, jfvmExecutableName, jfvmRepoDir) {
         // Test Linux binaries on current platform
         architectures.findAll { it.goos == 'linux' && it.goarch == 'amd64' }.each { architecture ->
             def pkg = architecture.pkg
-            def fileName = jfvmExecutableName
+            def fileName = jfcmExecutableName
             
             def binaryPath = fileExists("dist/signed/${pkg}/${fileName}") ? 
                 "dist/signed/${pkg}/${fileName}" : 
@@ -1043,65 +1152,116 @@ def testPackages(architectures, jfvmExecutableName, jfvmRepoDir) {
     }
 }
 
-def uploadToArtifactory(architectures, jfvmExecutableName, jfvmRepoDir, version, identifier, buildName, buildNumber) {
-    dir(jfvmRepoDir) {
-        withCredentials([usernamePassword(credentialsId: 'repo21', usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'ARTIFACTORY_PASSWORD')]) {
-            
-            // Upload binaries
-            architectures.each { architecture ->
-                def pkg = architecture.pkg
-                def fileExtension = architecture.fileExtension
-                def fileName = "${jfvmExecutableName}${fileExtension}"
+def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version, identifier, buildName, buildNumber) {
+    dir(jfcmRepoDir) {
+        // Environment detection
+        def isLocal = env.JENKINS_URL?.contains('localhost')
+        
+        // Use configurable credentials and URLs
+        def credentialsId = isLocal ? 'local-artifactory-creds' : 'repo21'
+        def artifactoryUrl = isLocal ? 
+            "http://host.docker.internal:8082/artifactory" : 
+            "https://releases.jfrog.io/artifactory"
+        def binariesRepo = "jfcm"
+        
+        echo "📤 Uploading to: ${artifactoryUrl}"
+        echo "Binaries repository: ${binariesRepo}"
+        
+        // For local testing, use direct credentials since credential store may not work
+        if (isLocal) {
+            sh """
+                echo "📤 Uploading binaries to local Artifactory..."
                 
-                // Upload signed binary if available, otherwise unsigned
-                def binaryPath = fileExists("dist/signed/${pkg}/${fileName}") ? 
-                    "dist/signed/${pkg}/${fileName}" : 
-                    "dist/binaries/${pkg}/${fileName}"
+                # Test connectivity first
+                curl -f -s -u admin:password "${artifactoryUrl}/api/system/ping"
+                echo "✅ Artifactory connectivity verified"
                 
-                if (fileExists(binaryPath)) {
-                    sh """
-                        curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                # Upload binaries following JFrog CLI structure: jfcm/v2/{version}/jfcm-{platform}/jfcm
+                find dist/binaries -type f -name "jfcm*" ! -name "*.sha256" | while read binary; do
+                    PKG=\$(echo \$binary | cut -d'/' -f3)
+                    FILENAME=\$(basename \$binary)
+                    
+                    # JFrog CLI structure: jfcm/v2/{version}/jfcm-{platform}/jfcm
+                    UPLOAD_PATH="jfcm/v2/${version}/\${PKG}/\${FILENAME}"
+                    UPLOAD_URL="${artifactoryUrl}/${binariesRepo}/\${UPLOAD_PATH}"
+                    
+                    echo "📤 Uploading \${PKG}/\${FILENAME} to \${UPLOAD_PATH}"
+                    
+                    curl -u admin:password \\
+                        -X PUT \\
+                        "\${UPLOAD_URL}" \\
+                        -T "\$binary" || echo "Upload failed for \$binary"
+                        
+                    # Upload checksum if exists
+                    if [ -f "\${binary}.sha256" ]; then
+                        curl -u admin:password \\
                             -X PUT \\
-                            "https://releases.jfrog.io/artifactory/jfvm/${identifier}/${version}/${pkg}/${fileName}" \\
-                            -T "${binaryPath}"
-                    """
+                            "\${UPLOAD_URL}.sha256" \\
+                            -T "\${binary}.sha256" || echo "Checksum upload failed"
+                    fi
+                done
+            """
+        } else {
+            // Production upload with credential store
+            withCredentials([usernamePassword(credentialsId: credentialsId, usernameVariable: 'ARTIFACTORY_USER', passwordVariable: 'ARTIFACTORY_PASSWORD')]) {
+                
+                // Upload binaries
+                architectures.each { architecture ->
+                    def pkg = architecture.pkg
+                    def fileExtension = architecture.fileExtension
+                    def fileName = "${jfcmExecutableName}${fileExtension}"
+                    
+                    // Upload signed binary if available, otherwise unsigned
+                    def binaryPath = fileExists("dist/signed/${pkg}/${fileName}") ? 
+                        "dist/signed/${pkg}/${fileName}" : 
+                        "dist/binaries/${pkg}/${fileName}"
+                    
+                    if (fileExists(binaryPath)) {
+                        sh """
+                            curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
+                                -X PUT \\
+                                "${artifactoryUrl}/${binariesRepo}/${identifier}/${version}/${pkg}/${fileName}" \\
+                                -T "${binaryPath}"
+                        """
+                    }
                 }
             }
+        }
             
             // Upload packages
             sh """
                 # Upload NPM package
-                if [ -f dist/packages/npm/jfvm-*.tgz ]; then
+                if [ -f dist/packages/npm/jfcm-*.tgz ]; then
                     curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                         -X PUT \\
-                        "https://releases.jfrog.io/artifactory/jfvm-npm/${identifier}/" \\
-                        -T dist/packages/npm/jfvm-*.tgz
+                        "https://releases.jfrog.io/artifactory/jfcm-npm/${identifier}/" \\
+                        -T dist/packages/npm/jfcm-*.tgz
                 fi
                 
                 # Upload Debian packages
                 find dist/packages -name "*.deb" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfvm-debs/" \\
+                    "https://releases.jfrog.io/artifactory/jfcm-debs/" \\
                     -T {} \\;
                 
                 # Upload RPM packages  
                 find dist/packages -name "*.rpm" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfvm-rpms/" \\
+                    "https://releases.jfrog.io/artifactory/jfcm-rpms/" \\
                     -T {} \\;
                 
                 # Upload Docker images
                 find dist/packages/docker -name "*.tar.gz" -exec curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "https://releases.jfrog.io/artifactory/jfvm-docker/${version}/" \\
+                    "https://releases.jfrog.io/artifactory/jfcm-docker/${version}/" \\
                     -T {} \\;
             """
         }
     }
 }
 
-def publishPackages(architectures, jfvmExecutableName, jfvmRepoDir, version, identifier) {
-    dir(jfvmRepoDir) {
+def publishPackages(architectures, jfcmExecutableName, jfcmRepoDir, version, identifier) {
+    dir(jfcmRepoDir) {
         parallel([
             'npm': {
                 publishNpmPackage(version, identifier)
@@ -1132,7 +1292,7 @@ def publishChocolateyPackage(version, identifier) {
         dir("build/chocolatey/${identifier}") {
             // Get the Windows binary checksum
             def checksum = sh(
-                script: "sha256sum ../../../dist/signed/jfvm-windows-amd64/jfvm.exe | cut -d' ' -f1 || sha256sum ../../../dist/binaries/jfvm-windows-amd64/jfvm.exe | cut -d' ' -f1",
+                script: "sha256sum ../../../dist/signed/jfcm-windows-amd64/jfcm.exe | cut -d' ' -f1 || sha256sum ../../../dist/binaries/jfcm-windows-amd64/jfcm.exe | cut -d' ' -f1",
                 returnStdout: true
             ).trim()
             
@@ -1144,7 +1304,7 @@ def publishChocolateyPackage(version, identifier) {
                 choco pack
                 
                 # Push to Chocolatey
-                choco push jfvm.${version.replaceFirst('^v', '')}.nupkg --api-key \${CHOCO_API_KEY}
+                choco push jfcm.${version.replaceFirst('^v', '')}.nupkg --api-key \${CHOCO_API_KEY}
             """
         }
     }
@@ -1156,10 +1316,10 @@ def publishDockerImages(version) {
             echo \${DOCKER_PASSWORD} | docker login -u \${DOCKER_USER} --password-stdin
             
             # Push images
-            docker push jfrog/jfvm:${version}
-            docker push jfrog/jfvm:latest
-            docker push jfrog/jfvm:${version}-full
-            docker push jfrog/jfvm:latest-full
+            docker push jfrog/jfcm:${version}
+            docker push jfrog/jfcm:latest
+            docker push jfrog/jfcm:${version}-full
+            docker push jfrog/jfcm:latest-full
         """
     }
 }
@@ -1169,7 +1329,7 @@ def updateInstallationDocs(version) {
     
     // Create installation scripts
     dir("build/installcli") {
-        writeFile file: 'jfvm.sh', text: """#!/bin/bash
+        writeFile file: 'jfcm.sh', text: """#!/bin/bash
 # JFVM Installation Script
 # This script installs JFVM and optionally JFrog CLI
 
@@ -1178,7 +1338,7 @@ set -e
 # Configuration
 JFVM_VERSION="${version}"
 INSTALL_DIR="/usr/local/bin"
-JFVM_DIR="\$HOME/.jfvm"
+JFVM_DIR="\$HOME/.jfcm"
 
 # Colors
 RED='\\033[0;31m'
@@ -1259,7 +1419,7 @@ prompt_jfrog_cli_installation() {
     esac
 }
 
-install_jfvm() {
+install_jfcm() {
     local platform=\$(detect_platform)
     if [ "\$platform" = "unsupported" ]; then
         echo -e "\${RED}Error: Unsupported platform: \$(uname -s)-\$(uname -m)\${NC}"
@@ -1268,8 +1428,8 @@ install_jfvm() {
     
     echo -e "\${BLUE}Installing JFVM \${JFVM_VERSION} for \${platform}...\${NC}"
     
-    local download_url="https://releases.jfrog.io/artifactory/jfvm/v1/\${JFVM_VERSION}/jfvm-\${platform}/jfvm"
-    local temp_file="/tmp/jfvm-\${JFVM_VERSION}"
+    local download_url="https://releases.jfrog.io/artifactory/jfcm/v1/\${JFVM_VERSION}/jfcm-\${platform}/jfcm"
+    local temp_file="/tmp/jfcm-\${JFVM_VERSION}"
     
     # Download JFVM
     if command -v curl >/dev/null 2>&1; then
@@ -1284,13 +1444,13 @@ install_jfvm() {
     # Install JFVM
     chmod +x "\$temp_file"
     
-    if [ -w "\$INSTALL_DIR" ] || sudo cp "\$temp_file" "\$INSTALL_DIR/jfvm" 2>/dev/null; then
-        echo -e "\${GREEN}JFVM installed to \$INSTALL_DIR/jfvm\${NC}"
+    if [ -w "\$INSTALL_DIR" ] || sudo cp "\$temp_file" "\$INSTALL_DIR/jfcm" 2>/dev/null; then
+        echo -e "\${GREEN}JFVM installed to \$INSTALL_DIR/jfcm\${NC}"
     else
         local user_bin="\$HOME/.local/bin"
         mkdir -p "\$user_bin"
-        cp "\$temp_file" "\$user_bin/jfvm"
-        echo -e "\${GREEN}JFVM installed to \$user_bin/jfvm\${NC}"
+        cp "\$temp_file" "\$user_bin/jfcm"
+        echo -e "\${GREEN}JFVM installed to \$user_bin/jfcm\${NC}"
         
         # Add to PATH
         if [[ ":\$PATH:" != *":\$user_bin:"* ]]; then
@@ -1318,7 +1478,7 @@ install_jfrog_cli() {
 main() {
     print_banner
     
-    install_jfvm
+    install_jfcm
     
     if prompt_jfrog_cli_installation; then
         install_jfrog_cli
@@ -1332,9 +1492,9 @@ main() {
     echo -e "\${GREEN}✅ JFVM installed successfully\${NC}"
     echo ""
     echo -e "\${BLUE}Next steps:\${NC}"
-    echo "  jfvm install latest    # Install latest JFrog CLI"
-    echo "  jfvm use latest        # Switch to latest version"
-    echo "  jfvm --help            # Show all commands"
+    echo "  jfcm install latest    # Install latest JFrog CLI"
+    echo "  jfcm use latest        # Switch to latest version"
+    echo "  jfcm --help            # Show all commands"
     echo ""
     echo -e "\${BLUE}Environment variables:\${NC}"
     echo "  JFVM_INSTALL_JFROG_CLI=true    # Auto-install JFrog CLI"
@@ -1348,14 +1508,14 @@ main "\$@"
         sh """
             curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                 -X PUT \\
-                "https://releases.jfrog.io/artifactory/jfvm-installers/jfvm.sh" \\
-                -T jfvm.sh
+                "https://releases.jfrog.io/artifactory/jfcm-installers/jfcm.sh" \\
+                -T jfcm.sh
         """
     }
 }
 
-def cleanupBuildArtifacts(jfvmRepoDir) {
-    dir(jfvmRepoDir) {
+def cleanupBuildArtifacts(jfcmRepoDir) {
+    dir(jfcmRepoDir) {
         sh """
             # Clean up temporary build artifacts but keep packages
             rm -rf build/sign/*.unsigned

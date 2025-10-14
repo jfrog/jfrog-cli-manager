@@ -37,7 +37,7 @@ pipeline {
         
         // Build configuration
         CGO_ENABLED = "0"
-        BUILD_NAME = "jfvm-multi-platform"
+        BUILD_NAME = "jfcm-multi-platform"
         IDENTIFIER = "v1"
         
         // Go configuration (will be updated during setup)
@@ -148,16 +148,16 @@ pipeline {
                 script {
                     // Production architecture matrix
                     def architectures = [
-                        [pkg: 'jfvm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe'],
-                        [pkg: 'jfvm-linux-386', goos: 'linux', goarch: '386', fileExtension: ''],
-                        [pkg: 'jfvm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: ''],
-                        [pkg: 'jfvm-linux-arm64', goos: 'linux', goarch: 'arm64', fileExtension: ''],
-                        [pkg: 'jfvm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
-                        [pkg: 'jfvm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
-                        [pkg: 'jfvm-mac-arm64', goos: 'darwin', goarch: 'arm64', fileExtension: ''],
-                        [pkg: 'jfvm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: ''],
-                        [pkg: 'jfvm-linux-ppc64le', goos: 'linux', goarch: 'ppc64le', fileExtension: ''],
-                        [pkg: 'jfvm-freebsd-amd64', goos: 'freebsd', goarch: 'amd64', fileExtension: '']
+                        [pkg: 'jfcm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe'],
+                        [pkg: 'jfcm-linux-386', goos: 'linux', goarch: '386', fileExtension: ''],
+                        [pkg: 'jfcm-linux-amd64', goos: 'linux', goarch: 'amd64', fileExtension: ''],
+                        [pkg: 'jfcm-linux-arm64', goos: 'linux', goarch: 'arm64', fileExtension: ''],
+                        [pkg: 'jfcm-linux-arm', goos: 'linux', goarch: 'arm', fileExtension: ''],
+                        [pkg: 'jfcm-mac-amd64', goos: 'darwin', goarch: 'amd64', fileExtension: ''],
+                        [pkg: 'jfcm-mac-arm64', goos: 'darwin', goarch: 'arm64', fileExtension: ''],
+                        [pkg: 'jfcm-linux-s390x', goos: 'linux', goarch: 's390x', fileExtension: ''],
+                        [pkg: 'jfcm-linux-ppc64le', goos: 'linux', goarch: 'ppc64le', fileExtension: ''],
+                        [pkg: 'jfcm-freebsd-amd64', goos: 'freebsd', goarch: 'amd64', fileExtension: '']
                     ]
                     
                     echo "🔧 Building ${architectures.size()} architectures (production matrix)"
@@ -168,7 +168,7 @@ pipeline {
                         def goarch = architecture.goarch
                         def pkg = architecture.pkg
                         def fileExtension = architecture.fileExtension
-                        def fileName = "jfvm${fileExtension}"
+                        def fileName = "jfcm${fileExtension}"
                         
                         buildSteps["${pkg}"] = {
                             buildBinary(goos, goarch, pkg, fileName, env.JFVM_VERSION)
@@ -193,7 +193,7 @@ pipeline {
                     echo "Simulating code signing..."
                     
                     mkdir -p dist/signed
-                    find dist/binaries -type f -name "jfvm*" ! -name "*.sha256" | while read binary; do
+                    find dist/binaries -type f -name "jfcm*" ! -name "*.sha256" | while read binary; do
                         PKG=$(echo $binary | cut -d'/' -f3)
                         FILENAME=$(basename $binary)
                         
@@ -310,7 +310,7 @@ pipeline {
             steps {
                 script {
                     def binaryCount = sh(
-                        script: 'find dist/binaries -name "jfvm*" ! -name "*.sha256" | wc -l',
+                        script: 'find dist/binaries -name "jfcm*" ! -name "*.sha256" | wc -l',
                         returnStdout: true
                     ).trim()
                     
@@ -332,14 +332,14 @@ pipeline {
                     • Tests: ${params.SKIP_TESTS ? 'Skipped' : 'Executed'}
                     
                     📦 Artifacts Location:
-                    • Local Artifactory: http://localhost:8082/ui/repos/tree/General/jfvm-binaries/jfvm/v1/${env.JFVM_VERSION}
+                    • Local Artifactory: http://localhost:8082/ui/repos/tree/General/jfcm/jfcm/v1/${env.JFVM_VERSION}
                     • Jenkins Artifacts: Available in job artifacts
                     
                     🔗 Repository Structure:
-                    jfvm-binaries/jfvm/v1/${env.JFVM_VERSION}/
-                    ├── jfvm-linux-amd64/jfvm
-                    ├── jfvm-mac-amd64/jfvm
-                    ├── jfvm-windows-amd64/jfvm.exe
+                    jfcm/jfcm/v1/${env.JFVM_VERSION}/
+                    ├── jfcm-linux-amd64/jfcm
+                    ├── jfcm-mac-amd64/jfcm
+                    ├── jfcm-windows-amd64/jfcm.exe
                     └── ... (all platforms)
                     """
                 }
@@ -367,7 +367,7 @@ pipeline {
         }
         success {
             echo "✅ JFVM Production-Style Build Completed Successfully!"
-            echo "📦 Binaries available in Artifactory: http://localhost:8082/ui/repos/tree/General/jfvm-binaries"
+            echo "📦 Binaries available in Artifactory: http://localhost:8082/ui/repos/tree/General/jfcm"
         }
         failure {
             echo "❌ JFVM Production Build Failed!"
@@ -431,12 +431,12 @@ def createNpmPackage(version, identifier) {
         # Create package.json (production-style)
         cat > package.json << EOF
 {
-  "name": "jfvm",
+  "name": "jfcm",
   "version": "\${CLEAN_VERSION}",
   "description": "JFrog CLI Version Manager",
   "main": "index.js",
   "bin": {
-    "jfvm": "./bin/jfvm"
+    "jfcm": "./bin/jfcm"
   },
   "keywords": ["jfrog", "cli", "version-manager"],
   "author": "JFrog",
@@ -450,14 +450,14 @@ EOF
         
         # Create install script
         mkdir -p bin
-        echo '#!/bin/bash' > bin/jfvm
-        echo 'echo "NPM package placeholder for jfvm"' >> bin/jfvm
-        chmod +x bin/jfvm
+        echo '#!/bin/bash' > bin/jfcm
+        echo 'echo "NPM package placeholder for jfcm"' >> bin/jfcm
+        chmod +x bin/jfcm
         
         # Create tarball simulation (npm not available in container)
         mkdir -p ../../../dist/packages/npm
         CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
-        echo "NPM package simulation" > "../../../dist/packages/npm/jfvm-\${CLEAN_VERSION}.tgz"
+        echo "NPM package simulation" > "../../../dist/packages/npm/jfcm-\${CLEAN_VERSION}.tgz"
         
         echo "✅ NPM package created"
     """
@@ -474,11 +474,11 @@ def createChocolateyPackage(version, identifier) {
         CLEAN_VERSION=\$(echo "${version}" | sed 's/^v//')
         
         # Create chocolatey spec (production-style)
-        cat > jfvm.nuspec << EOF
+        cat > jfcm.nuspec << EOF
 <?xml version="1.0" encoding="utf-8"?>
 <package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
   <metadata>
-    <id>jfvm</id>
+    <id>jfcm</id>
     <version>\${CLEAN_VERSION}</version>
     <title>JFrog CLI Version Manager</title>
     <authors>JFrog</authors>
@@ -496,14 +496,14 @@ EOF
         # Create install script
         mkdir -p tools
         cat > tools/chocolateyinstall.ps1 << 'EOF'
-\$packageName = 'jfvm'
-\$url = 'http://localhost:8082/artifactory/jfvm-binaries/jfvm/v1/${version}/jfvm-windows-amd64/jfvm.exe'
-\$installDir = Join-Path \$env:ChocolateyInstall 'lib/jfvm/tools'
-Get-ChocolateyWebFile \$packageName \$installDir/jfvm.exe \$url
+\$packageName = 'jfcm'
+\$url = 'http://localhost:8082/artifactory/jfcm/jfcm/v1/${version}/jfcm-windows-amd64/jfcm.exe'
+\$installDir = Join-Path \$env:ChocolateyInstall 'lib/jfcm/tools'
+Get-ChocolateyWebFile \$packageName \$installDir/jfcm.exe \$url
 EOF
         
         mkdir -p ../../../dist/packages/chocolatey
-        echo "Chocolatey package prepared" > ../../../dist/packages/chocolatey/jfvm.nupkg.placeholder
+        echo "Chocolatey package prepared" > ../../../dist/packages/chocolatey/jfcm.nupkg.placeholder
         
         echo "✅ Chocolatey package created"
     """
@@ -518,7 +518,7 @@ def createDebianPackages(version) {
         # Simulate debian package creation for supported architectures
         for arch in amd64 arm64; do
             echo "Creating .deb for \${arch}..."
-            touch "dist/packages/debian/jfvm_${version}_\${arch}.deb"
+            touch "dist/packages/debian/jfcm_${version}_\${arch}.deb"
         done
         
         echo "✅ Debian packages created"
@@ -534,7 +534,7 @@ def createRpmPackages(version) {
         # Simulate RPM package creation
         for arch in x86_64 aarch64; do
             echo "Creating .rpm for \${arch}..."
-            touch "dist/packages/rpm/jfvm-${version}.\${arch}.rpm"
+            touch "dist/packages/rpm/jfcm-${version}.\${arch}.rpm"
         done
         
         echo "✅ RPM packages created"
@@ -546,7 +546,7 @@ def uploadToArtifactory(version, identifier, buildName, buildNumber) {
         echo "📤 Uploading to Artifactory (production-style)..."
         
         # Upload binaries (following production structure)
-        find dist/binaries -name "jfvm*" ! -name "*.sha256" | while read binary; do
+        find dist/binaries -name "jfcm*" ! -name "*.sha256" | while read binary; do
             PKG=\$(echo \$binary | cut -d'/' -f3)
             FILENAME=\$(basename \$binary)
             
@@ -561,14 +561,14 @@ def uploadToArtifactory(version, identifier, buildName, buildNumber) {
             
             curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                 -X PUT \\
-                "\${ARTIFACTORY_URL}/artifactory/jfvm-binaries/jfvm/\${identifier}/\${version}/\${PKG}/\${FILENAME}" \\
+                "\${ARTIFACTORY_URL}/artifactory/jfcm/jfcm/\${identifier}/\${version}/\${PKG}/\${FILENAME}" \\
                 -T "\${UPLOAD_BINARY}" || echo "Upload failed for \${FILENAME}"
                 
             # Upload checksum
             if [ -f "\${binary}.sha256" ]; then
                 curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "\${ARTIFACTORY_URL}/artifactory/jfvm-binaries/jfvm/\${identifier}/\${version}/\${PKG}/\${FILENAME}.sha256" \\
+                    "\${ARTIFACTORY_URL}/artifactory/jfcm/jfcm/\${identifier}/\${version}/\${PKG}/\${FILENAME}.sha256" \\
                     -T "\${binary}.sha256" || echo "Checksum upload failed"
             fi
         done
@@ -582,7 +582,7 @@ def uploadToArtifactory(version, identifier, buildName, buildNumber) {
                 echo "Uploading NPM package: \$(basename \$pkg)"
                 curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "\${ARTIFACTORY_URL}/artifactory/jfvm-npm/\${identifier}/" \\
+                    "\${ARTIFACTORY_URL}/artifactory/jfcm-npm/\${identifier}/" \\
                     -T "\$pkg" || echo "NPM upload failed"
             done
             
@@ -591,7 +591,7 @@ def uploadToArtifactory(version, identifier, buildName, buildNumber) {
                 echo "Uploading Debian package: \$(basename \$pkg)"
                 curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "\${ARTIFACTORY_URL}/artifactory/jfvm-debs/" \\
+                    "\${ARTIFACTORY_URL}/artifactory/jfcm-debs/" \\
                     -T "\$pkg" || echo "DEB upload failed"
             done
             
@@ -600,13 +600,13 @@ def uploadToArtifactory(version, identifier, buildName, buildNumber) {
                 echo "Uploading RPM package: \$(basename \$pkg)"
                 curl -u \${ARTIFACTORY_USER}:\${ARTIFACTORY_PASSWORD} \\
                     -X PUT \\
-                    "\${ARTIFACTORY_URL}/artifactory/jfvm-rpms/" \\
+                    "\${ARTIFACTORY_URL}/artifactory/jfcm-rpms/" \\
                     -T "\$pkg" || echo "RPM upload failed"
             done
         fi
         
         echo "✅ Artifactory upload completed"
-        echo "📦 View artifacts: http://localhost:8082/ui/repos/tree/General/jfvm-binaries/jfvm/v1/${version}"
+        echo "📦 View artifacts: http://localhost:8082/ui/repos/tree/General/jfcm/jfcm/v1/${version}"
     """
 }
 
@@ -617,7 +617,7 @@ def runCrossPlatformTests(version) {
         mkdir -p test-results
         
         # Test each binary
-        find dist/binaries -name "jfvm*" ! -name "*.sha256" | while read binary; do
+        find dist/binaries -name "jfcm*" ! -name "*.sha256" | while read binary; do
             PKG=\$(echo \$binary | cut -d'/' -f3)
             FILENAME=\$(basename \$binary)
             
