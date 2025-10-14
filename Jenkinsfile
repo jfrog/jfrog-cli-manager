@@ -279,7 +279,7 @@ def setupBuildEnvironment(jfcmRepoDir) {
     }
 }
 
-def buildJfvmBinaries(architectures, jfcmExecutableName, jfcmRepoDir, version) {
+def buildJfcmBinaries(architectures, jfcmExecutableName, jfcmRepoDir, version) {
     def buildSteps = [:]
     
     architectures.each { architecture ->
@@ -646,7 +646,7 @@ async function downloadFile(url, dest) {
     });
 }
 
-async function downloadJfvm() {
+async function downloadJfcm() {
     const architecture = getArchitecture();
     const version = require("./package.json").version;
     const fileName = process.platform.startsWith("win") ? "jfcm.exe" : "jfcm";
@@ -698,7 +698,7 @@ async function main() {
     console.log("\\u001b[0m");
     
     try {
-        await downloadJfvm();
+        await downloadJfcm();
         
         const installJfrogCli = await promptJfrogCliInstallation();
         if (installJfrogCli) {
