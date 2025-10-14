@@ -149,8 +149,32 @@ def executePipeline() {
             }
             
             stage('Sign Binaries') {
-                echo "Signing binaries..."
-                signBinaries(architectures, jfcmExecutableName, jfcmRepoDir)
+                if (params.LOCAL_TESTING == true) {
+                    // Simulate signing for local testing (like Jenkinsfile.local)
+                    echo "🔐 Simulating binary signing process..."
+                    dir(jfcmRepoDir) {
+                        sh '''
+                            # In production, this would sign binaries
+                            # For local testing, we'll copy to signed directory
+                            echo "Simulating code signing..."
+                            
+                            mkdir -p dist/signed
+                            find dist/binaries -type f -name "jfcm*" ! -name "*.sha256" | while read binary; do
+                                PKG=$(echo $binary | cut -d'/' -f3)
+                                FILENAME=$(basename $binary)
+                                
+                                mkdir -p "dist/signed/${PKG}"
+                                cp "$binary" "dist/signed/${PKG}/${FILENAME}"
+                                echo "✅ Simulated signing for ${PKG}/${FILENAME}"
+                            done
+                            
+                            echo "✅ Binary signing simulation completed"
+                        '''
+                    }
+                } else {
+                    echo "Signing binaries..."
+                    signBinaries(architectures, jfcmExecutableName, jfcmRepoDir)
+                }
             }
             
             stage('Create Packages') {
