@@ -1196,37 +1196,37 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 
                 echo "📤 Uploading packages to local Artifactory..."
                 
-                # Upload NPM package
-                if [ -f dist/packages/npm/jfcm-*.tgz ]; then
-                    NPM_FILE=\$(ls dist/packages/npm/jfcm-*.tgz)
+                # Upload NPM package to jfcm repo under npm folder
+                NPM_FILE=\$(ls dist/packages/npm/jfcm-*.tgz 2>/dev/null | head -1)
+                if [ -f "\$NPM_FILE" ]; then
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/jfcm-npm/${identifier}/\$(basename \$NPM_FILE)" \\
-                        -T "\$NPM_FILE"
+                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/npm/\$(basename \$NPM_FILE)" \\
+                        -T "\$NPM_FILE" || echo "NPM upload failed"
                 fi
                 
-                # Upload Debian packages
-                find dist/packages -name "*.deb" | while read DEB_FILE; do
+                # Upload Debian packages to jfcm repo under deb folder
+                find dist/packages -name "*.deb" 2>/dev/null | while read DEB_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/jfcm-debs/\$(basename \$DEB_FILE)" \\
-                        -T "\$DEB_FILE"
+                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/deb/\$(basename \$DEB_FILE)" \\
+                        -T "\$DEB_FILE" || echo "DEB upload failed"
                 done
                 
-                # Upload RPM packages  
-                find dist/packages -name "*.rpm" | while read RPM_FILE; do
+                # Upload RPM packages to jfcm repo under rpm folder
+                find dist/packages -name "*.rpm" 2>/dev/null | while read RPM_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/jfcm-rpms/\$(basename \$RPM_FILE)" \\
-                        -T "\$RPM_FILE"
+                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/rpm/\$(basename \$RPM_FILE)" \\
+                        -T "\$RPM_FILE" || echo "RPM upload failed"
                 done
                 
-                # Upload Docker images
-                find dist/packages/docker -name "*.tar.gz" | while read DOCKER_FILE; do
+                # Upload Docker images to jfcm repo under docker folder
+                find dist/packages/docker -name "*.tar.gz" 2>/dev/null | while read DOCKER_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/jfcm-docker/${version}/\$(basename \$DOCKER_FILE)" \\
-                        -T "\$DOCKER_FILE"
+                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/docker/\$(basename \$DOCKER_FILE)" \\
+                        -T "\$DOCKER_FILE" || echo "Docker image upload failed"
                 done
             """
         } else {
