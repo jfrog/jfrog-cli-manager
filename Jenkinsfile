@@ -78,15 +78,15 @@ echo "Binaries repo: ${currentConfig.binariesRepo}"
 // For production, use specific label
 if (isLocalTesting) {
     node {
-        executePipeline()
+        executePipeline(isLocalTesting)
     }
 } else {
     node('docker-ubuntu20-xlarge') {
-        executePipeline()
+        executePipeline(isLocalTesting)
     }
 }
 
-def executePipeline() {
+def executePipeline(isLocalTesting) {
     cleanWs()
     
     // Global variables
