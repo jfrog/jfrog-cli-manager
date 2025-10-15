@@ -89,6 +89,29 @@ if (isLocalTesting) {
 def executePipeline(isLocalTesting) {
     cleanWs()
     
+    // Artifactory configuration based on environment
+    def artifactoryConfig = [
+        local: [
+            url: params.ARTIFACTORY_URL_OVERRIDE ?: "http://host.docker.internal:8082/artifactory",
+            credentials: "local-artifactory-creds",
+            binariesRepo: params.BINARIES_REPO_OVERRIDE ?: "jfcm",
+            npmRepo: "jfcm-npm",
+            debsRepo: "jfcm-debs",
+            rpmsRepo: "jfcm-rpms",
+            dockerRepo: "jfcm-docker"
+        ],
+        production: [
+            url: params.ARTIFACTORY_URL_OVERRIDE ?: "https://releases.jfrog.io/artifactory",
+            credentials: "repo21",
+            binariesRepo: params.BINARIES_REPO_OVERRIDE ?: "jfcm",
+            npmRepo: "jfcm-npm",
+            debsRepo: "jfcm-debs",
+            rpmsRepo: "jfcm-rpms",
+            dockerRepo: "jfcm-docker"
+        ]
+    ]
+    def currentConfig = isLocalTesting ? artifactoryConfig.local : artifactoryConfig.production
+    
     // Global variables
     def architectures = [
         [pkg: 'jfcm-windows-amd64', goos: 'windows', goarch: 'amd64', fileExtension: '.exe', chocoImage: 'linuturk/mono-choco'],
@@ -197,7 +220,7 @@ def executePipeline(isLocalTesting) {
             
             stage('Upload to Artifactory') {
                 echo "Uploading artifacts to Artifactory..."
-                uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier, buildName, buildNumber)
+                uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, jfcmVersion, identifier, buildName, buildNumber, currentConfig, isLocalTesting)
             }
             
             if (publishToProd) {
@@ -1127,23 +1150,18 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
     }
 }
 
-def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version, identifier, buildName, buildNumber) {
+def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version, identifier, buildName, buildNumber, config, isLocalTesting) {
     dir(jfcmRepoDir) {
-        // Environment detection
-        def isLocal = env.JENKINS_URL?.contains('localhost')
-        
-        // Use configurable credentials and URLs
-        def credentialsId = isLocal ? 'local-artifactory-creds' : 'repo21'
-        def artifactoryUrl = isLocal ? 
-            "http://host.docker.internal:8082/artifactory" : 
-            "https://releases.jfrog.io/artifactory"
-        def binariesRepo = "jfcm"
+        def artifactoryUrl = config.url
+        def credentialsId = config.credentials
+        def binariesRepo = config.binariesRepo
         
         echo "📤 Uploading to: ${artifactoryUrl}"
         echo "Binaries repository: ${binariesRepo}"
+        echo "Environment: ${isLocalTesting ? 'LOCAL' : 'PRODUCTION'}"
         
         // For local testing, use direct credentials since credential store may not work
-        if (isLocal) {
+        if (isLocalTesting) {
             sh """
                 echo "📤 Uploading binaries to local Artifactory..."
                 
