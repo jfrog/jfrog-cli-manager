@@ -22,6 +22,11 @@ properties([
             defaultValue: '',
             description: 'Override binaries repository name (e.g., my-jfcm-binaries)'
         ),
+        string(
+            name: 'RELEASE_CHANNEL',
+            defaultValue: 'dev',
+            description: 'Release channel (dev, staging, prod)'
+        ),
         booleanParam(
             name: 'SKIP_PACKAGING',
             defaultValue: false,
@@ -1169,13 +1174,13 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 curl -f -s -u admin:password "${artifactoryUrl}/api/system/ping"
                 echo "✅ Artifactory connectivity verified"
                 
-                # Upload binaries following JFrog CLI structure: jfcm/v2/{version}/jfcm-{platform}/jfcm
+                # Upload binaries following structure: {channel}/{version}/jfcm-{platform}/jfcm
+                CHANNEL="${params.RELEASE_CHANNEL}"
                 find dist/binaries -type f -name "jfcm*" ! -name "*.sha256" | while read binary; do
                     PKG=\$(echo \$binary | cut -d'/' -f3)
                     FILENAME=\$(basename \$binary)
                     
-                    # JFrog CLI structure: jfcm/v2/{version}/jfcm-{platform}/jfcm
-                    UPLOAD_PATH="jfcm/v2/${version}/\${PKG}/\${FILENAME}"
+                    UPLOAD_PATH="\${CHANNEL}/${version}/\${PKG}/\${FILENAME}"
                     UPLOAD_URL="${artifactoryUrl}/${binariesRepo}/\${UPLOAD_PATH}"
                     
                     echo "📤 Uploading \${PKG}/\${FILENAME} to \${UPLOAD_PATH}"
@@ -1195,13 +1200,14 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 done
                 
                 echo "📤 Uploading packages to local Artifactory..."
+                CHANNEL="${params.RELEASE_CHANNEL}"
                 
                 # Upload NPM package to jfcm repo under npm folder
                 NPM_FILE=\$(ls dist/packages/npm/jfcm-*.tgz 2>/dev/null | head -1)
                 if [ -f "\$NPM_FILE" ]; then
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/npm/\$(basename \$NPM_FILE)" \\
+                        "${artifactoryUrl}/${binariesRepo}/\${CHANNEL}/${version}/npm/\$(basename \$NPM_FILE)" \\
                         -T "\$NPM_FILE" || echo "NPM upload failed"
                 fi
                 
@@ -1209,7 +1215,7 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 find dist/packages -name "*.deb" 2>/dev/null | while read DEB_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/deb/\$(basename \$DEB_FILE)" \\
+                        "${artifactoryUrl}/${binariesRepo}/\${CHANNEL}/${version}/deb/\$(basename \$DEB_FILE)" \\
                         -T "\$DEB_FILE" || echo "DEB upload failed"
                 done
                 
@@ -1217,7 +1223,7 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 find dist/packages -name "*.rpm" 2>/dev/null | while read RPM_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/rpm/\$(basename \$RPM_FILE)" \\
+                        "${artifactoryUrl}/${binariesRepo}/\${CHANNEL}/${version}/rpm/\$(basename \$RPM_FILE)" \\
                         -T "\$RPM_FILE" || echo "RPM upload failed"
                 done
                 
@@ -1225,7 +1231,7 @@ def uploadToArtifactory(architectures, jfcmExecutableName, jfcmRepoDir, version,
                 find dist/packages/docker -name "*.tar.gz" 2>/dev/null | while read DOCKER_FILE; do
                     curl -u admin:password \\
                         -X PUT \\
-                        "${artifactoryUrl}/${binariesRepo}/v2/${version}/docker/\$(basename \$DOCKER_FILE)" \\
+                        "${artifactoryUrl}/${binariesRepo}/\${CHANNEL}/${version}/docker/\$(basename \$DOCKER_FILE)" \\
                         -T "\$DOCKER_FILE" || echo "Docker image upload failed"
                 done
             """
