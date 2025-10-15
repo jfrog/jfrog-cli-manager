@@ -1073,13 +1073,16 @@ def testPackages(architectures, jfcmExecutableName, jfcmRepoDir) {
         
         // Test NPM package
         sh """
-            if [ -f dist/packages/npm/jfcm-*.tgz ]; then
-                echo "Testing NPM package..."
+            NPM_PKG=\$(ls dist/packages/npm/jfcm-*.tgz 2>/dev/null | head -1)
+            if [ -f "\$NPM_PKG" ]; then
+                echo "Testing NPM package: \$NPM_PKG"
                 docker run --rm -v \$(pwd):/workspace -w /workspace node:lts bash -c "
                     cd /tmp
-                    npm pack /workspace/dist/packages/npm/jfcm-*.tgz
+                    npm pack /workspace/\$NPM_PKG
                 "
                 echo "✅ NPM package test passed"
+            else
+                echo "⚠️  No NPM package found, skipping test"
             fi
         """
         
