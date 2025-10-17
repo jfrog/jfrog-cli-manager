@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"os"
 
+	"strings"
+
 	"github.com/jfrog/jfrog-cli-manager/cmd"
 	"github.com/jfrog/jfrog-cli-manager/cmd/utils"
+	"github.com/jfrog/jfrog-cli-manager/internal"
 	"github.com/urfave/cli/v2"
 )
 
@@ -19,6 +22,41 @@ func main() {
 	app := &cli.App{
 		Name:  "jfcm",
 		Usage: "Manage multiple versions of JFrog CLI",
+		After: func(c *cli.Context) error {
+			// Capture feature_id only if it matches a registered top-level command (or its alias)
+			// 1) Build a set of valid command names and aliases
+			valid := make(map[string]struct{})
+			if c != nil && c.App != nil {
+				for _, cmd := range c.App.Commands {
+					if cmd.Name != "" {
+						valid[cmd.Name] = struct{}{}
+					}
+					for _, al := range cmd.Aliases {
+						if al != "" {
+							valid[al] = struct{}{}
+						}
+					}
+				}
+			}
+
+			// 2) Find the first non-flag arg after the binary
+			candidate := ""
+			for _, a := range os.Args[1:] {
+				if a == "" || strings.HasPrefix(a, "-") {
+					continue
+				}
+				candidate = a
+				break
+			}
+
+			// 3) Record only if it's a known command/alias
+			if candidate != "" {
+				if _, ok := valid[candidate]; ok {
+					internal.AppendLocalJFcmMetric(candidate)
+				}
+			}
+			return nil
+		},
 		Flags: []cli.Flag{
 			&cli.BoolFlag{
 				Name:    "version",
